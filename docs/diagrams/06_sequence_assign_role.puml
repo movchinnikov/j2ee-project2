@@ -1,0 +1,133 @@
+@startuml sequence_assign_role
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam SequenceArrowColor #333333
+skinparam SequenceLifeLineBorderColor #333333
+skinparam SequenceParticipantBorderColor #333333
+skinparam SequenceBoxBorderColor #333333
+skinparam NoteBackgroundColor #FFFFFF
+skinparam NoteBorderColor #333333
+
+title Cleaning Platform — Role Assignment & Revocation Flow\n(POST /api/v1/admin/assign-role | ROLE_ADMIN required)
+
+actor "Admin / Super Admin" as ADMIN
+participant "UI Service\n(:18090)" as UI
+participant "IAC Service\n(:18080)" as IAC
+participant "JwtAuthFilter" as FILTER
+participant "AdminController" as CTRL
+participant "RoleService" as SVC
+participant "UnitOfWork" as UOW
+database "iac_db\n(PostgreSQL)" as DB
+participant "OutboxPublisher" as OUTBOX
+participant "OutboxRelayScheduler" as RELAY
+queue "Kafka\nuser.role_assigned" as KAFKA
+participant "Order Service\n(:18083)" as ORDER
+
+== Authentication (pre-condition) ==
+
+ADMIN -> UI: POST /api/v1/auth/login\n{username, password}
+UI -> IAC: forward login request
+IAC -> IAC: validate credentials
+IAC -> IAC: generate JWT (accessToken)\n+ refreshToken
+IAC --> UI: {accessToken, refreshToken}
+UI --> ADMIN: tokens stored in session
+
+== Role Assignment ==
+
+ADMIN -> UI: POST /admin/assign-role\n{username: "john", role: "ROLE_CLIENT"}
+UI -> IAC: POST /api/v1/admin/assign-role\nAuthorization: Bearer <accessToken>
+
+note right of IAC
+  Request enters Spring Security filter chain
+end note
+
+IAC -> FILTER: doFilterInternal(request)
+FILTER -> FILTER: extract Bearer token\nfrom Authorization header
+FILTER -> FILTER: jwtTokenProvider.isTokenValid(token)
+FILTER -> FILTER: extractUsername(token)
+FILTER -> DB: loadUserByUsername(username)
+DB --> FILTER: UserEntity + roles
+FILTER -> FILTER: set SecurityContextHolder\n(UsernamePasswordAuthenticationToken)
+FILTER --> IAC: chain.doFilter() — authenticated
+
+IAC -> CTRL: assignRole(username, roleName)
+
+note right of CTRL
+  @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+  Spring checks SecurityContext before entering method
+end note
+
+CTRL -> CTRL: @PreAuthorize check\ngetAuthentication().getAuthorities()
+alt User does NOT have ROLE_ADMIN / ROLE_SUPER_ADMIN
+    CTRL --> ADMIN: 403 Forbidden\n{error: "Access Denied"}
+else User IS authorized
+    CTRL -> SVC: assignRole(username, roleName)
+
+    SVC -> UOW: getUsers().findByUsernameAsOption(username)
+    UOW -> DB: SELECT * FROM users WHERE username = ?
+    DB --> UOW: UserEntity (or empty)
+    UOW --> SVC: Option<UserEntity>
+
+    alt User not found
+        SVC --> CTRL: Either.left("User not found")
+        CTRL --> ADMIN: 404 Not Found
+    else User found
+        SVC -> UOW: getRoles().findByNameAsOption(roleName)
+        UOW -> DB: SELECT * FROM roles WHERE name = ?
+        DB --> UOW: RoleEntity (or empty)
+        UOW --> SVC: Option<RoleEntity>
+
+        alt Role not found
+            SVC --> CTRL: Either.left("Role not found")
+            CTRL --> ADMIN: 404 Not Found
+        else Role found
+            SVC -> SVC: check if user already\nhas this role (idempotent)
+
+            alt Role already assigned
+                SVC --> CTRL: Either.right(UserResponse) [no-op]
+                CTRL --> ADMIN: 200 OK {user with roles}
+            else Role is new
+                SVC -> UOW: user.addRole(role)
+                SVC -> UOW: getUsers().save(user)
+                UOW -> DB: UPDATE users SET ...\nINSERT INTO user_roles (user_id, role_id)
+                DB --> UOW: UserEntity saved
+
+                note right of OUTBOX
+                  Transactional Outbox Pattern:
+                  event written in SAME transaction
+                end note
+
+                SVC -> OUTBOX: publish(UserRoleAssignedEvent\n{userId, username, roleName, assignedAt})
+                OUTBOX -> DB: INSERT INTO outbox_events\n{status: PENDING, payload: JSON}
+                DB --> OUTBOX: committed
+
+                SVC --> CTRL: Either.right(UserResponse)
+                CTRL --> UI: 200 OK {id, username, roles: [...]}
+                UI --> ADMIN: "Role assigned successfully"
+            end
+        end
+    end
+end
+
+== Outbox Relay (async) ==
+
+RELAY -> DB: SELECT * FROM outbox_events\nWHERE status = 'PENDING'
+DB --> RELAY: [OutboxEventEntity]
+RELAY -> KAFKA: publish to "user.role_assigned"\n{userId, username, roleName, ...}
+RELAY -> DB: UPDATE status = 'PROCESSED'
+
+== Order Service reacts to Kafka event ==
+
+KAFKA --> ORDER: UserRoleAssignedEvent consumed\nby UserEventConsumer
+ORDER -> ORDER: if roleName == 'ROLE_CLEANER':\nauto-create CleanerProfile if absent
+ORDER -> ORDER: CleanerProfileEntity saved\n(isAvailable=true, userId=UUID)
+
+note right of ORDER
+  Order Service mirrors IAC users/roles
+  via Kafka events — NO direct HTTP call
+  to IAC on each request.
+end note
+
+@enduml

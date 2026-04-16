@@ -817,7 +817,157 @@
 
 
 <!-- ═══════════════════════════════════════════════
-     SLIDE 10 — STATUS & CONCLUSION
+     SLIDE 10 — ROLE ASSIGNMENT SEQUENCE
+═══════════════════════════════════════════════ -->
+<div class="slide" id="s10">
+  <div class="footer-bar"></div>
+  <div class="slide-header">
+    <div class="logo-mark" style="width:38px;height:38px;font-size:18px;"><i class="fas fa-user-shield" style="font-size:14px;"></i></div>
+    <div class="slide-section">Security</div>
+    <h2 class="slide-title">Role Assignment Flow — Admin API</h2>
+  </div>
+  <div class="slide-body" style="padding-top:16px;flex-direction:row;gap:28px;">
+
+    <div style="flex:1;display:flex;flex-direction:column;gap:14px;">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--indigo);">POST /api/v1/admin/assign-role</div>
+      <p style="font-size:13px;color:var(--subtext);line-height:1.65;">
+        Admin-only endpoint. Requires <strong style="color:var(--indigo-2);">ROLE_ADMIN</strong> or <strong style="color:var(--indigo-2);">ROLE_SUPER_ADMIN</strong> in the JWT.
+        Assignment is idempotent. On success, a <code style="color:var(--fuchsia);">user.role_assigned</code>
+        event is published via the <strong style="color:var(--green);">Transactional Outbox</strong>.
+      </p>
+
+      <div class="divider"></div>
+
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div class="step">
+          <div class="step-dot">1</div>
+          <div>
+            <div style="font-weight:600;font-size:13px;">JwtAuthFilter intercepts request</div>
+            <div style="font-size:12px;color:var(--muted);">Extracts Bearer token → validates → loads UserDetails from DB → sets SecurityContext</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-dot">2</div>
+          <div>
+            <div style="font-weight:600;font-size:13px;">@PreAuthorize gate</div>
+            <div style="font-size:12px;color:var(--muted);">Spring checks authorities in SecurityContext — 403 if missing admin role</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-dot">3</div>
+          <div>
+            <div style="font-weight:600;font-size:13px;">RoleService.assignRole() — idempotent</div>
+            <div style="font-size:12px;color:var(--muted);">Finds user + role → adds to user_roles → saves → writes outbox_events (same TX)</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-dot">4</div>
+          <div>
+            <div style="font-weight:600;font-size:13px;">Outbox Relay → Kafka → Order Service</div>
+            <div style="font-size:12px;color:var(--muted);">UserEventConsumer auto-creates CleanerProfile if roleName == ROLE_CLEANER</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="flex:1;display:flex;flex-direction:column;gap:12px;">
+      <div class="diagram-frame" style="flex:1;">
+        <img src="diagrams/06_sequence_assign_role.png" alt="Role Assignment Sequence"
+             style="max-height:500px;" onerror="this.style.display='none';this.parentElement.innerHTML='<div style=padding:20px;color:#94a3b8;font-size:13px;>Diagram: docs/diagrams/06_sequence_assign_role.png<br/>Run: plantuml -tpng docs/diagrams/06_sequence_assign_role.puml</div>';" />
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;background:rgba(99,102,241,.08);border:1px solid rgba(99,102,241,.2);border-radius:10px;padding:10px 14px;">
+        <i class="fas fa-shield-halved" style="color:var(--indigo);"></i>
+        <div style="font-size:12px;color:var(--subtext);"><strong style="color:var(--text);">SUPER_ADMIN</strong> role cannot be revoked — hardcoded protection in RoleService</div>
+      </div>
+    </div>
+
+  </div>
+  <div class="slide-num">Group 6 · 10 / 12</div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════
+     SLIDE 11 — JWT AUTHORIZATION FLOW
+═══════════════════════════════════════════════ -->
+<div class="slide" id="s11">
+  <div class="footer-bar"></div>
+  <div class="slide-header">
+    <div class="logo-mark" style="width:38px;height:38px;font-size:18px;"><i class="fas fa-key" style="font-size:14px;"></i></div>
+    <div class="slide-section">Security</div>
+    <h2 class="slide-title">JWT Authorization — Decentralized Validation</h2>
+  </div>
+  <div class="slide-body" style="padding-top:16px;flex-direction:row;gap:28px;">
+
+    <div style="flex:1;display:flex;flex-direction:column;gap:14px;">
+      <p style="font-size:13px;color:var(--subtext);line-height:1.65;">
+        <strong style="color:var(--text);">No IAC round-trip per request.</strong> Each service
+        verifies the JWT independently using the shared <code style="color:var(--fuchsia);">JWT_SECRET</code> env var.
+        Roles are decoded from JWT claims — no DB lookup needed downstream.
+      </p>
+
+      <div class="divider"></div>
+
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div class="step">
+          <div class="step-dot">1</div>
+          <div>
+            <div style="font-weight:600;font-size:13px;">IAC issues signed JWT</div>
+            <div style="font-size:12px;color:var(--muted);">Claims: sub(username), roles[], userId(UUID), iat, exp(15 min)</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-dot">2</div>
+          <div>
+            <div style="font-weight:600;font-size:13px;">Any service validates independently</div>
+            <div style="font-size:12px;color:var(--muted);">JwtTokenProvider verifies HS256 signature with shared secret + checks exp</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-dot">3</div>
+          <div>
+            <div style="font-weight:600;font-size:13px;">Service-to-service auth</div>
+            <div style="font-size:12px;color:var(--muted);">Order → Property: passes same user JWT for ownership check</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-dot">4</div>
+          <div>
+            <div style="font-weight:600;font-size:13px;">Token expiry → single-use refresh</div>
+            <div style="font-size:12px;color:var(--muted);">RefreshToken rotated on each use — old token immediately revoked in DB</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;">
+        <div class="card" style="padding:10px 14px;">
+          <div style="font-size:11px;color:var(--indigo-2);font-weight:700;margin-bottom:4px;">Access Token</div>
+          <div style="font-size:12px;color:var(--muted);">15 min TTL · HS256 · stateless</div>
+        </div>
+        <div class="card" style="padding:10px 14px;">
+          <div style="font-size:11px;color:var(--green);font-weight:700;margin-bottom:4px;">Refresh Token</div>
+          <div style="font-size:12px;color:var(--muted);">7 days · stored in DB · single-use rotation</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="flex:1;display:flex;flex-direction:column;gap:12px;">
+      <div class="diagram-frame" style="flex:1;">
+        <img src="diagrams/07_sequence_authorization.png" alt="JWT Authorization Sequence"
+             style="max-height:500px;" onerror="this.style.display='none';this.parentElement.innerHTML='<div style=padding:20px;color:#94a3b8;font-size:13px;>Diagram: docs/diagrams/07_sequence_authorization.png<br/>Run: plantuml -tpng docs/diagrams/07_sequence_authorization.puml</div>';" />
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:10px;padding:10px 14px;">
+        <i class="fas fa-check-double" style="color:var(--green);"></i>
+        <div style="font-size:12px;color:var(--subtext);">POST /api/v1/auth/logout revokes <strong style="color:var(--text);">ALL</strong> refresh tokens for the user atomically</div>
+      </div>
+    </div>
+
+  </div>
+  <div class="slide-num">Group 6 · 11 / 12</div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════
+     SLIDE 12 — STATUS & CONCLUSION
 ═══════════════════════════════════════════════ -->
 <div class="slide" id="s10">
   <div class="footer-bar"></div>
@@ -879,7 +1029,7 @@
           <li><i class="fas fa-check" style="color:var(--green);margin-right:8px;"></i>Transactional Outbox (IAC + Order)</li>
           <li><i class="fas fa-check" style="color:var(--green);margin-right:8px;"></i>Kafka consumer (UserEventConsumer)</li>
           <li><i class="fas fa-check" style="color:var(--green);margin-right:8px;"></i>6 Kafka topics defined</li>
-          <li><i class="fas fa-check" style="color:var(--green);margin-right:8px;"></i>5 PlantUML diagrams (incl. new Outbox)</li>
+          <li><i class="fas fa-check" style="color:var(--green);margin-right:8px;"></i>5 PlantUML diagrams (assign-role, auth, outbox)</li>
           <li><i class="fas fa-check" style="color:var(--green);margin-right:8px;"></i>PDF report (13 sections, 1.3 MB)</li>
           <li><i class="fas fa-check" style="color:var(--green);margin-right:8px;"></i>destroy.sh + run.sh scripts</li>
           <li><i class="fas fa-check" style="color:var(--green);margin-right:8px;"></i>docker-compose.yml (Kafka + Zookeeper)</li>
@@ -896,7 +1046,7 @@
     </div>
 
   </div>
-  <div class="slide-num">Group 6 · 10 / 10</div>
+  <div class="slide-num">Group 6 · 12 / 12</div>
 </div>
 
 </body>

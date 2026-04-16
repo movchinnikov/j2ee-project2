@@ -1,0 +1,146 @@
+@startuml sequence_authorization
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam SequenceArrowColor #333333
+skinparam SequenceLifeLineBorderColor #333333
+skinparam SequenceParticipantBorderColor #333333
+skinparam SequenceBoxBorderColor #333333
+skinparam NoteBackgroundColor #FFFFFF
+skinparam NoteBorderColor #333333
+
+title Cleaning Platform — JWT Authorization Flow\n(Decentralized token validation, no IAC round-trip)
+
+actor "Client User" as USER
+participant "UI Service\n(:18090)" as UI
+participant "IAC Service\n(:18080)" as IAC
+participant "JwtTokenProvider\n(IAC)" as JWT_IAC
+participant "Property Service\n(:18081)" as PROP
+participant "JwtAuthFilter\n(Property)" as PROP_FILTER
+participant "JwtTokenProvider\n(Property)" as JWT_PROP
+participant "Order Service\n(:18083)" as ORDER
+participant "JwtAuthFilter\n(Order)" as ORDER_FILTER
+database "Shared JWT_SECRET\n(env var)" as SECRET
+
+note over IAC, SECRET
+  All microservices share the SAME JWT_SECRET via environment variable.
+  Each service independently validates tokens — zero inter-service calls per request.
+end note
+
+== Step 1: Login and obtain JWT ==
+
+USER -> UI: POST /api/v1/auth/login\n{username: "alice", password: "..."}
+UI -> IAC: forward to IAC Service
+IAC -> IAC: AuthService.login()
+IAC -> IAC: validate credentials against DB
+IAC -> JWT_IAC: generateAccessToken(username, roles, userId)
+JWT_IAC -> SECRET: sign with HS256 + JWT_SECRET
+SECRET --> JWT_IAC: signed token
+JWT_IAC --> IAC: accessToken (15 min TTL)\n+ refreshToken (7 days)
+IAC --> UI: {accessToken, refreshToken, userId, roles}
+UI --> USER: tokens stored in session cookie
+
+note right of JWT_IAC
+  JWT Claims:
+  - sub: "alice"
+  - roles: ["ROLE_USER", "ROLE_CLIENT"]
+  - userId: "550e8400-..."
+  - iat, exp
+end note
+
+== Step 2: Accessing Property Service (ROLE_CLIENT required) ==
+
+USER -> UI: GET /properties (view my properties)
+UI -> PROP: GET /api/v1/properties\nAuthorization: Bearer <accessToken>
+
+PROP -> PROP_FILTER: doFilterInternal(request)
+PROP_FILTER -> PROP_FILTER: extract token from header
+PROP_FILTER -> JWT_PROP: isTokenValid(token)
+JWT_PROP -> SECRET: verify signature with shared JWT_SECRET
+SECRET --> JWT_PROP: signature OK
+JWT_PROP -> JWT_PROP: check exp claim (not expired)
+JWT_PROP --> PROP_FILTER: true
+
+PROP_FILTER -> JWT_PROP: extractUsername(token)
+JWT_PROP --> PROP_FILTER: "alice"
+PROP_FILTER -> PROP_FILTER: loadUserByUsername("alice")\n[local UserDetails from JWT claims]
+PROP_FILTER -> PROP_FILTER: setAuthentication()\n(principal + authorities from JWT)
+
+note right of PROP_FILTER
+  Property Service does NOT call IAC.
+  Roles are decoded from JWT claims.
+  UserDetails built in-memory from token.
+end note
+
+PROP_FILTER --> PROP: authenticated context set
+
+PROP -> PROP: @PreAuthorize("hasRole('CLIENT')")
+PROP -> PROP: check SecurityContext authorities
+alt Missing ROLE_CLIENT
+    PROP --> USER: 403 Forbidden
+else Has ROLE_CLIENT
+    PROP -> PROP: propertyService.findByClientId(userId)
+    PROP --> UI: 200 OK [PropertyList]
+    UI --> USER: render properties page
+end
+
+== Step 3: Creating Order (ROLE_CLIENT, property validation) ==
+
+USER -> UI: POST /orders (create cleaning order)
+UI -> ORDER: POST /api/v1/orders\nAuthorization: Bearer <accessToken>
+
+ORDER -> ORDER_FILTER: doFilterInternal(request)
+ORDER_FILTER -> JWT_PROP: validate token (same logic)
+JWT_PROP --> ORDER_FILTER: valid, username="alice"
+ORDER_FILTER -> ORDER_FILTER: setAuthentication()
+
+ORDER -> ORDER: @PreAuthorize("hasRole('CLIENT')")
+ORDER -> ORDER: extract userId from SecurityContext\n(UUID from JWT claim)
+
+ORDER -> PROP: HTTP GET /api/v1/properties/{propId}/validate\nAuthorization: Bearer <accessToken> (service-to-service)
+
+note right of ORDER
+  Order Service passes the SAME user JWT
+  to Property Service for ownership validation.
+  Property Service validates token independently.
+end note
+
+PROP -> PROP_FILTER: validate token
+PROP_FILTER --> PROP: authenticated
+PROP -> PROP: check property owner == userId
+alt Ownership mismatch
+    PROP --> ORDER: 403 Forbidden
+    ORDER --> USER: 403 Property not owned by user
+else Owner matches
+    PROP --> ORDER: 200 OK {valid: true, property details}
+    ORDER -> ORDER: create OrderEntity\n(PENDING status)
+    ORDER --> UI: 201 Created {orderId, totalPrice}
+    UI --> USER: "Order created, proceed to payment"
+end
+
+== Step 4: Token Expiry and Refresh ==
+
+USER -> UI: any authenticated request
+UI -> PROP: Bearer <expired accessToken>
+PROP -> PROP_FILTER: validate token
+PROP_FILTER -> JWT_PROP: isTokenValid(token)
+JWT_PROP -> JWT_PROP: check exp claim — EXPIRED
+JWT_PROP --> PROP_FILTER: false
+PROP_FILTER --> PROP: no authentication set
+PROP --> UI: 401 Unauthorized
+
+UI -> IAC: POST /api/v1/auth/refresh?refreshToken=<rt>
+IAC -> IAC: validate refreshToken in DB\n(single-use, check expiry)
+IAC -> IAC: revoke old refreshToken
+IAC -> JWT_IAC: generateAccessToken() — new token
+IAC --> UI: {new accessToken, new refreshToken}
+UI -> PROP: retry with new Bearer token
+PROP --> UI: 200 OK
+
+note over IAC, UI
+  Refresh tokens are single-use with rotation.
+  POST /api/v1/auth/logout revokes ALL refresh tokens.
+end note
+
+@enduml

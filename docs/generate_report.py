@@ -225,6 +225,9 @@ story += [
     P("7. Authentication &amp; Security", body),
     P("8. API Reference", body),
     P("9. Sequence Diagrams", body),
+    P("&nbsp;&nbsp;&nbsp;&nbsp;9.1 Order Lifecycle — Create, Pay, Complete", body),
+    P("&nbsp;&nbsp;&nbsp;&nbsp;9.2 Role Assignment &amp; Outbox Flow", body),
+    P("&nbsp;&nbsp;&nbsp;&nbsp;9.3 JWT Authorization across Services", body),
     P("10. Postman Collection", body),
     P("11. Deployment", body),
     P("12. Testing", body),
@@ -677,19 +680,42 @@ story += [
 #  8. SEQUENCE DIAGRAMS
 # ═══════════════════════════════════════════════════════════
 story += [
-    P("8. Sequence Diagrams", h1),
+    P("9. Sequence Diagrams", h1),
     hr(),
-    P("8.1 Order Lifecycle — Create, Pay, Complete", h2),
+    P("9.1 Order Lifecycle — Create, Pay, Complete", h2),
     sp(6),
     *diagram("sequence_order_flow.png", "Full order lifecycle from creation through payment to completion"),
-    PageBreak()
+    PageBreak(),
+    P("9.2 Role Assignment &amp; Revocation Flow", h2),
+    P("""
+    The following sequence diagram details the complete flow for assigning a role to a user
+    via the Admin API. It covers the JWT authentication check by <code>JwtAuthFilter</code>,
+    the <code>@PreAuthorize</code> RBAC gate, the idempotent role assignment logic in
+    <code>RoleService</code>, and the asynchronous Kafka event published via the
+    Transactional Outbox Pattern — which triggers the Order Service to auto-create a
+    <code>CleanerProfile</code> when the CLEANER role is assigned.
+    """, body),
+    sp(8),
+    *diagram("06_sequence_assign_role.png", "Role Assignment sequence — Admin assigns ROLE_CLEANER, Outbox publishes event, Order Service creates CleanerProfile", max_w=6.5*inch, max_h=7*inch),
+    PageBreak(),
+    P("9.3 JWT Authorization Flow across Microservices", h2),
+    P("""
+    This diagram shows how JWT tokens are validated <b>independently</b> by each microservice
+    without calling back to the IAC Service on every request. All services share the same
+    <code>JWT_SECRET</code> environment variable and run their own <code>JwtAuthFilter</code>
+    + <code>JwtTokenProvider</code>. It also covers the token refresh flow when an access
+    token expires.
+    """, body),
+    sp(8),
+    *diagram("07_sequence_authorization.png", "JWT Authorization flow — decentralized token validation, service-to-service calls, token refresh", max_w=6.5*inch, max_h=7*inch),
+    PageBreak(),
 ]
 
 # ═══════════════════════════════════════════════════════════
 #  9. POSTMAN COLLECTION
 # ═══════════════════════════════════════════════════════════
 story += [
-    P("9. Postman Collection", h1),
+    P("10. Postman Collection", h1),
     hr(),
     P("""
     A complete Postman collection is included in the <code>postman/</code> directory.
@@ -749,7 +775,7 @@ story += [
 #  10. DEPLOYMENT
 # ═══════════════════════════════════════════════════════════
 story += [
-    P("10. Deployment", h1),
+    P("11. Deployment", h1),
     hr(),
     P("""
     The entire platform is containerized and can be started with a single Docker Compose command.
@@ -791,7 +817,7 @@ story += [
 #  11. TESTING
 # ═══════════════════════════════════════════════════════════
 story += [
-    P("11. Testing", h1),
+    P("12. Testing", h1),
     hr(),
     P("""
     Testing was performed by Pragati Sahani using the Postman collection against a locally running
@@ -828,7 +854,7 @@ story += [
 #  12. CONCLUSION
 # ═══════════════════════════════════════════════════════════
 story += [
-    P("12. Conclusion", h1),
+    P("13. Conclusion", h1),
     hr(),
     P("""
     The Cleaning Platform successfully demonstrates a production-grade microservice application
