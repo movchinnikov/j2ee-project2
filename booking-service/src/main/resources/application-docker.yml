@@ -1,0 +1,19 @@
+# Docker profile — dedicated booking_db on shared PostgreSQL instance
+spring:
+  datasource:
+    url: jdbc:postgresql://postgres:5432/booking_db
+    username: ${SPRING_DATASOURCE_USERNAME:booking_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:booking_secret_pass}
+
+  jpa:
+    show-sql: false
+
+server:
+  port: 8090
+
+jwt:
+  secret: ${JWT_SECRET}
+
+logging:
+  level:
+    com.project.booking: INFO

@@ -1,0 +1,16 @@
+# Docker profile — dedicated pricing_db on shared PostgreSQL instance
+spring:
+  datasource:
+    url: jdbc:postgresql://postgres:5432/pricing_db
+    username: ${SPRING_DATASOURCE_USERNAME:pricing_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:pricing_secret_pass}
+
+server:
+  port: 8080
+
+jwt:
+  secret: ${JWT_SECRET}
+
+logging:
+  level:
+    com.project.pricing: INFO

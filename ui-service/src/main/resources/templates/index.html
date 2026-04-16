@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>J2EE Project — IAC Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d2e;
+    --accent: #6c63ff;
+    --accent2: #ff6584;
+    --text: #e2e8f0;
+    --muted: #718096;
+    --border: #2d3748;
+    --success: #48bb78;
+    --card: #1e2235;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .logo { font-size: 1.4rem; font-weight: 700; color: var(--accent); }
+  .logo span { color: var(--accent2); }
+  nav a {
+    color: var(--muted);
+    text-decoration: none;
+    margin-left: 1.5rem;
+    transition: color 0.2s;
+  }
+  nav a:hover { color: var(--accent); }
+  .hero {
+    text-align: center;
+    padding: 5rem 1rem 3rem;
+  }
+  .hero h1 {
+    font-size: 2.8rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 1rem;
+  }
+  .hero p { color: var(--muted); font-size: 1.1rem; max-width: 600px; margin: 0 auto 2rem; }
+  .btn {
+    display: inline-block;
+    padding: 0.75rem 2rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    text-decoration: none;
+    transition: all 0.2s;
+    cursor: pointer;
+    border: none;
+  }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover { background: #5a52d5; transform: translateY(-2px); box-shadow: 0 8px 25px rgba(108,99,255,0.3); }
+  .btn-outline { background: transparent; color: var(--accent); border: 2px solid var(--accent); margin-left: 1rem; }
+  .btn-outline:hover { background: var(--accent); color: white; }
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    max-width: 1100px;
+    margin: 2rem auto;
+    padding: 0 2rem;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    transition: all 0.25s;
+  }
+  .card:hover { transform: translateY(-4px); border-color: var(--accent); box-shadow: 0 12px 40px rgba(108,99,255,0.15); }
+  .card-icon { font-size: 2.5rem; margin-bottom: 1rem; }
+  .card h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem; }
+  .card p { color: var(--muted); font-size: 0.9rem; line-height: 1.5; }
+  .card-link {
+    display: inline-block;
+    margin-top: 1rem;
+    color: var(--accent);
+    font-size: 0.85rem;
+    text-decoration: none;
+    font-weight: 600;
+  }
+  .status-bar {
+    max-width: 1100px;
+    margin: 1rem auto 3rem;
+    padding: 0 2rem;
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .status-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    padding: 0.4rem 1rem;
+    font-size: 0.8rem;
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); animation: pulse 2s infinite; }
+  .dot.warn { background: #f6ad55; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  footer {
+    text-align: center;
+    padding: 2rem;
+    color: var(--muted);
+    font-size: 0.85rem;
+    border-top: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">J2EE<span>Platform</span></div>
+  <nav>
+    <a href="/">Home</a>
+    <a href="/login">Login</a>
+    <a th:href="${swaggerUrl}" target="_blank">Swagger UI</a>
+  </nav>
+</header>
+
+<div class="hero">
+  <h1>Identity & Access Control</h1>
+  <p>Microservices-based platform with JWT authentication, role-based access control, and PostgreSQL persistence.</p>
+  <a href="/login" class="btn btn-primary">Get Started</a>
+  <a th:href="${swaggerUrl}" target="_blank" class="btn btn-outline">API Docs</a>
+</div>
+
+<div class="status-bar">
+  <div class="status-chip"><div class="dot"></div> IAC Service · port 18080</div>
+  <div class="status-chip"><div class="dot"></div> PostgreSQL · port 15432</div>
+  <div class="status-chip"><div class="dot"></div> Swagger UI · /swagger-ui</div>
+</div>
+
+<div class="cards">
+  <div class="card">
+    <div class="card-icon">🔐</div>
+    <h3>Authentication</h3>
+    <p>JWT-based stateless auth with access and refresh token rotation. Spring Security 6.</p>
+    <a th:href="${iacServiceUrl + '/swagger-ui.html#/Authentication'}" target="_blank" class="card-link">Try in Swagger →</a>
+  </div>
+  <div class="card">
+    <div class="card-icon">👥</div>
+    <h3>User Management</h3>
+    <p>Full CRUD for users. Paginated listing, soft delete protection for Super Admin.</p>
+    <a th:href="${iacServiceUrl + '/api/v1/users'}" target="_blank" class="card-link">View API →</a>
+  </div>
+  <div class="card">
+    <div class="card-icon">🛡️</div>
+    <h3>Role Management</h3>
+    <p>Assign and revoke roles: SUPER_ADMIN, ADMIN, USER. Hierarchy enforcement built in.</p>
+    <a th:href="${iacServiceUrl + '/api/v1/admin/roles'}" target="_blank" class="card-link">View Roles →</a>
+  </div>
+  <div class="card">
+    <div class="card-icon">📚</div>
+    <h3>OpenAPI Docs</h3>
+    <p>Interactive Swagger UI with Bearer auth support. Try all endpoints directly in the browser.</p>
+    <a th:href="${swaggerUrl}" target="_blank" class="card-link">Open Swagger →</a>
+  </div>
+</div>
+
+<footer>
+  J2EE Course Project — Spring Boot 3 · PostgreSQL · Docker · Lombok · Vavr
+</footer>
+
+</body>
+</html>

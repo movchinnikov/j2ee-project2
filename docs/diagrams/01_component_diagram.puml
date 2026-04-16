@@ -1,0 +1,155 @@
+@startuml component_diagram
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam ArrowColor #333333
+skinparam ComponentBorderColor #333333
+skinparam DatabaseBorderColor #333333
+skinparam ActorBorderColor #333333
+skinparam RectangleBorderColor #333333
+skinparam QueueBorderColor #333333
+skinparam NoteBackgroundColor #FFFFFF
+skinparam NoteBorderColor #333333
+
+title Cleaning Platform — Component Diagram\n(microservice-per-database + Kafka Outbox Pattern)
+
+actor "Client User" as CLIENT
+actor "Cleaner User" as CLEANER
+actor "Admin / Super Admin" as ADMIN
+
+rectangle "Browser" as BROWSER {
+  [Web UI\n(Thymeleaf + JS)] as UI
+}
+
+rectangle "Docker Network: cleaning-network" {
+
+  rectangle "PostgreSQL :5432 — single instance" as PG_HOST #F0F0F0 {
+    database "iac_db\nuser: iac_user\n+ outbox_events" as IAC_DB
+    database "property_db\nuser: property_user" as PROP_DB
+    database "pricing_db\nuser: pricing_user" as PRICE_DB
+    database "order_db\nuser: order_user\n+ outbox_events" as ORDER_DB
+    database "booking_db\nuser: booking_user" as BOOK_DB
+  }
+
+  queue "Apache Kafka :9092\n(Zookeeper :2181)" as KAFKA #E8F4F8 {
+    [user.registered] as T_USER_REG
+    [user.role_assigned] as T_ROLE_ASSIGN
+    [order.created] as T_ORD_CREATED
+    [order.confirmed] as T_ORD_CONFIRMED
+    [order.completed] as T_ORD_COMPLETED
+    [order.cancelled] as T_ORD_CANCELLED
+  }
+
+  rectangle "IAC Service :18080\n(iac_db)" as IAC #EEEEEE {
+    [AuthController\n/api/v1/auth] as AUTH_CTRL
+    [UserController\n/api/v1/users] as USER_CTRL
+    [AdminController\n/api/v1/admin] as ADMIN_CTRL
+    [JwtAuthFilter] as JWT_FILTER
+    [JwtTokenProvider] as JWT_PROVIDER
+    [AuthService\nUserService\nRoleService] as IAC_SVC
+    [OutboxPublisher] as IAC_OUTBOX
+    [OutboxRelayScheduler] as IAC_RELAY
+  }
+
+  rectangle "Property Service :18081\n(property_db)" as PROP #EEEEEE {
+    [PropertyController\n/api/v1/properties] as PROP_CTRL
+    [JwtAuthFilter] as PROP_JWT
+  }
+
+  rectangle "Pricing Service :18082\n(pricing_db)" as PRICE #EEEEEE {
+    [PricingController\n/api/v1/catalog\n/api/v1/pricing] as PRICE_CTRL
+    [PricingEngine] as PRICE_ENG
+  }
+
+  rectangle "Order Service :18083\n(order_db)" as ORDER #EEEEEE {
+    [ClientOrderController\n/api/v1/orders] as CLIENT_ORDER_CTRL
+    [CleanerController\n/api/v1/cleaner] as CLEANER_CTRL
+    [OrderService] as ORDER_SVC
+    [RoundRobinAssigner] as RR
+    [OutboxPublisher] as ORD_OUTBOX
+    [OutboxRelayScheduler] as ORD_RELAY
+    [UserEventConsumer] as ORD_CONSUMER
+  }
+
+  rectangle "Booking / UI Service :18090\n(booking_db)" as BOOKING #EEEEEE {
+    [ClientController\n/api/v1/properties,orders] as BOOK_CLIENT
+    [CleanerController\n/api/v1/cleaner] as BOOK_CLEANER
+    [ServiceCatalogController\n/api/v1/services,addons] as BOOK_CATALOG
+    [UnitOfWork] as BOOK_UOW
+    [EarningService] as BOOK_EARN
+  }
+
+}
+
+CLIENT --> UI
+CLEANER --> UI
+ADMIN --> UI
+
+UI --> IAC : REST auth/users/roles
+UI --> BOOKING : REST properties/orders/catalog
+
+AUTH_CTRL --> IAC_SVC
+USER_CTRL --> IAC_SVC
+ADMIN_CTRL --> IAC_SVC
+IAC_SVC --> IAC_DB
+IAC_SVC --> IAC_OUTBOX : write event\n(same TX)
+IAC_OUTBOX --> IAC_DB : INSERT outbox_events
+IAC_RELAY --> IAC_DB : poll PENDING
+IAC_RELAY --> KAFKA : publish
+JWT_FILTER --> JWT_PROVIDER
+
+PROP_JWT --> JWT_PROVIDER : validate JWT
+PROP_CTRL --> PROP_DB
+
+PRICE_CTRL --> PRICE_ENG
+PRICE_CTRL --> PRICE_DB
+
+CLIENT_ORDER_CTRL --> ORDER_SVC
+CLEANER_CTRL --> ORDER_SVC
+ORDER_SVC --> RR
+ORDER_SVC --> PROP_CTRL : HTTP — validate ownership\n[synchronous]
+ORDER_SVC --> PRICE_CTRL : HTTP — calculate price\n[synchronous]
+ORDER_SVC --> ORD_OUTBOX : write event\n(same TX)
+ORD_OUTBOX --> ORDER_DB : INSERT outbox_events
+ORD_RELAY --> ORDER_DB : poll PENDING
+ORD_RELAY --> KAFKA : publish
+KAFKA --> ORD_CONSUMER : user.registered\nuser.role_assigned
+ORD_CONSUMER --> ORDER_DB : auto-create CleanerProfile
+
+BOOK_CLIENT --> BOOK_UOW
+BOOK_CLEANER --> BOOK_EARN
+BOOK_CATALOG --> BOOK_UOW
+BOOK_UOW --> BOOK_DB
+BOOK_EARN --> BOOK_DB
+
+note bottom of PG_HOST
+  Single PostgreSQL instance.
+  Each service has its own database
+  and dedicated DB user.
+  outbox_events table in:
+    iac_db  (IAC service events)
+    order_db (Order service events)
+end note
+
+note right of KAFKA
+  Kafka Topics:
+  user.registered      (IAC → Order)
+  user.role_assigned   (IAC → Order)
+  order.created        (Order → future)
+  order.confirmed      (Order → future)
+  order.completed      (Order → future)
+  order.cancelled      (Order → future)
+
+  Outbox Pattern guarantees
+  at-least-once delivery.
+end note
+
+note right of IAC
+  Shared JWT_SECRET env var.
+  Each service validates tokens
+  independently — no IAC call
+  on every request.
+end note
+
+@enduml

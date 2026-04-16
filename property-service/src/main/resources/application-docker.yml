@@ -1,0 +1,16 @@
+# Docker profile — dedicated property_db on shared PostgreSQL instance
+spring:
+  datasource:
+    url: jdbc:postgresql://postgres:5432/property_db
+    username: ${SPRING_DATASOURCE_USERNAME:property_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:property_secret_pass}
+
+server:
+  port: 8080
+
+jwt:
+  secret: ${JWT_SECRET}
+
+logging:
+  level:
+    com.project.property: INFO

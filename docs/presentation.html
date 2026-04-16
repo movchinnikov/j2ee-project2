@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Cleaning Platform — Group 6 Presentation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <style>
+    /* ═══════════════════════════════════
+       ROOT TOKENS — from app color system
+    ═══════════════════════════════════ */
+    :root {
+      --bg:        #020617;        /* slate-950 */
+      --slide-bg:  #0f172a;        /* slate-900 */
+      --card:      #1e293b;        /* slate-800 */
+      --border:    #334155;        /* slate-700 */
+      --muted:     #94a3b8;        /* slate-400 */
+      --text:      #f1f5f9;        /* slate-100 */
+      --subtext:   #cbd5e1;        /* slate-300 */
+
+      --indigo:    #6366f1;
+      --indigo-2:  #818cf8;
+      --fuchsia:   #d946ef;
+      --violet:    #7c3aed;
+      --green:     #10b981;
+      --amber:     #f59e0b;
+      --red:       #ef4444;
+
+      --grad: linear-gradient(135deg, #d946ef 0%, #6366f1 100%);
+      --grad-subtle: linear-gradient(135deg, rgba(217,70,239,.12) 0%, rgba(99,102,241,.12) 100%);
+
+      /* slide dims — 16:9 */
+      --W: 1200px;
+      --H: 675px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      font-family: 'Inter', system-ui, sans-serif;
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 60px 40px;
+      gap: 72px;
+    }
+
+    /* ── Slide wrapper ── */
+    .slide {
+      width: var(--W);
+      height: var(--H);
+      background: var(--slide-bg);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      box-shadow:
+        0 0 0 1px rgba(99,102,241,.08),
+        0 40px 80px -20px rgba(0,0,0,.9),
+        0 8px 24px rgba(0,0,0,.6);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* subtle grid background */
+    .slide::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(99,102,241,.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(99,102,241,.04) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+    }
+
+    /* corner glow accent */
+    .slide::after {
+      content: '';
+      position: absolute;
+      top: -80px; right: -80px;
+      width: 300px; height: 300px;
+      background: radial-gradient(circle, rgba(217,70,239,.15) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    /* ── Slide number badge ── */
+    .slide-num {
+      position: absolute;
+      bottom: 28px;
+      right: 36px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--border);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    /* ── Header strip ── */
+    .slide-header {
+      padding: 32px 48px 0;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-shrink: 0;
+    }
+    .slide-section {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      color: var(--indigo);
+      padding: 4px 12px;
+      border: 1px solid rgba(99,102,241,.3);
+      border-radius: 999px;
+      background: rgba(99,102,241,.1);
+    }
+    .slide-title {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1.2;
+    }
+
+    /* ── Body area ── */
+    .slide-body {
+      flex: 1;
+      padding: 24px 48px 48px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* ── Typography helpers ── */
+    .grad-text {
+      background: var(--grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* ── Cards / chips ── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px 24px;
+    }
+    .card-accent {
+      background: var(--grad-subtle);
+      border: 1px solid rgba(99,102,241,.3);
+      border-radius: 14px;
+      padding: 20px 24px;
+    }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 500;
+    }
+    .chip i { color: var(--indigo); }
+
+    /* ── Status badge ── */
+    .badge-ok   { background: rgba(16,185,129,.15); border:1px solid rgba(16,185,129,.4); color:#6ee7b7; border-radius:6px; padding:2px 10px; font-size:12px; font-weight:600; }
+    .badge-warn { background: rgba(245,158,11,.15); border:1px solid rgba(245,158,11,.4); color:#fcd34d; border-radius:6px; padding:2px 10px; font-size:12px; font-weight:600; }
+    .badge-err  { background: rgba(239,68,68,.15); border:1px solid rgba(239,68,68,.4); color:#fca5a5; border-radius:6px; padding:2px 10px; font-size:12px; font-weight:600; }
+
+    /* ── code block ── */
+    pre {
+      background: #020617;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 20px;
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-size: 12.5px;
+      line-height: 1.6;
+      overflow: hidden;
+    }
+    .c-red   { color: #f87171; }
+    .c-green { color: #34d399; }
+    .c-yellow{ color: #fbbf24; }
+    .c-blue  { color: #60a5fa; }
+    .c-gray  { color: #475569; }
+    .c-violet{ color: #a78bfa; }
+
+    /* ── diagram image ── */
+    .diagram-frame {
+      background: #020617;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .diagram-frame img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    /* ── service grid item ── */
+    .svc {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 16px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 500;
+      text-align: center;
+      min-width: 100px;
+    }
+    .svc i { font-size: 20px; }
+    .svc .port { font-size: 11px; color: var(--indigo-2); font-weight: 600; }
+
+    /* ── timeline step ── */
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+    }
+    .step-dot {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: var(--grad);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    /* ── big stat ── */
+    .stat { text-align: center; }
+    .stat-num { font-size: 52px; font-weight: 800; line-height: 1; }
+    .stat-lbl { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+    /* ── divider ── */
+    .divider {
+      width: 100%; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+      margin: 16px 0;
+    }
+
+    /* ── Kafka flow arrows ── */
+    .kflow {
+      display: flex;
+      align-items: center;
+      gap: 0;
+    }
+    .knode {
+      padding: 10px 16px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      font-size: 12px;
+      font-weight: 600;
+      text-align: center;
+      white-space: nowrap;
+    }
+    .karrow {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      min-width: 60px;
+    }
+    .karrow::after {
+      content: '';
+      width: 100%;
+      height: 1px;
+      background: linear-gradient(90deg, var(--indigo), var(--fuchsia));
+    }
+    .karrow i {
+      color: var(--fuchsia);
+      font-size: 12px;
+      position: absolute;
+    }
+    .ktopic {
+      font-size: 10px;
+      color: var(--indigo-2);
+      white-space: nowrap;
+      margin-bottom: 2px;
+    }
+
+    hr.sep { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
+
+    /* ── logo mark ── */
+    .logo-mark {
+      width: 48px; height: 48px;
+      background: var(--grad);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+
+    /* ── footer bar ── */
+    .footer-bar {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--grad);
+    }
+
+    /* ── table ── */
+    table.report-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    table.report-table th {
+      background: rgba(99,102,241,.15);
+      color: var(--indigo-2);
+      padding: 8px 12px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 11px;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+    table.report-table td {
+      padding: 8px 12px;
+      border-bottom: 1px solid rgba(51,65,85,.5);
+      color: var(--subtext);
+      vertical-align: top;
+    }
+    table.report-table tr:last-child td { border-bottom: none; }
+    table.report-table .mono { font-family: monospace; color: var(--indigo-2); font-size: 12px; }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════
+     SLIDE 1 — TITLE
+═══════════════════════════════════════════════ -->
+<div class="slide" id="s1">
+  <div class="footer-bar"></div>
+  <!-- big bg glow -->
+  <div style="position:absolute;top:-120px;left:-120px;width:500px;height:500px;
+    background:radial-gradient(circle,rgba(99,102,241,.18) 0%,transparent 70%);pointer-events:none;"></div>
+  <div style="position:absolute;bottom:-80px;right:200px;width:400px;height:400px;
+    background:radial-gradient(circle,rgba(217,70,239,.12) 0%,transparent 70%);pointer-events:none;"></div>
+
+  <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;padding:40px;position:relative;z-index:1;">
+
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:4px;">
+      <div class="logo-mark">🧹</div>
+      <div>
+        <div style="font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--indigo);">J2EE Architecture Project</div>
+        <div style="font-size:11px;color:var(--muted);">Semester 4 · Group 6</div>
+      </div>
+    </div>
+
+    <div style="text-align:center;">
+      <h1 style="font-size:64px;font-weight:800;line-height:1.08;letter-spacing:-.02em;">
+        Cleaning <span class="grad-text">Platform</span>
+      </h1>
+      <p style="font-size:20px;color:var(--muted);margin-top:12px;font-weight:400;">
+        Microservices · Kafka · Transactional Outbox · Docker
+      </p>
+    </div>
+
+    <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center;">
+      <span class="chip"><i class="fab fa-java"></i>Spring Boot 3</span>
+      <span class="chip"><i class="fas fa-database"></i>PostgreSQL 16</span>
+      <span class="chip"><i class="fas fa-bolt"></i>Apache Kafka</span>
+      <span class="chip"><i class="fab fa-docker"></i>Docker Compose</span>
+      <span class="chip"><i class="fas fa-shield-halved"></i>JWT · RBAC</span>
+      <span class="chip"><i class="fas fa-layer-group"></i>Flyway</span>
+    </div>
+
+    <div style="display:flex;gap:24px;margin-top:8px;">
+      <div class="stat"><div class="stat-num grad-text">5</div><div class="stat-lbl">Microservices</div></div>
+      <div style="width:1px;background:var(--border);"></div>
+      <div class="stat"><div class="stat-num grad-text">6</div><div class="stat-lbl">Kafka Topics</div></div>
+      <div style="width:1px;background:var(--border);"></div>
+      <div class="stat"><div class="stat-num grad-text">3</div><div class="stat-lbl">User Roles</div></div>
+      <div style="width:1px;background:var(--border);"></div>
+      <div class="stat"><div class="stat-num grad-text">4</div><div class="stat-lbl">DB Schemas</div></div>
+    </div>
+  </div>
+  <div class="slide-num">Group 6 · 01 / 10</div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════
+     SLIDE 2 — PROJECT OVERVIEW
+═══════════════════════════════════════════════ -->
+<div class="slide" id="s2">
+  <div class="footer-bar"></div>
+  <div class="slide-header">
+    <div class="logo-mark" style="width:38px;height:38px;font-size:18px;">🧹</div>
+    <div>
+      <div class="slide-section">Overview</div>
+    </div>
+    <h2 class="slide-title" style="margin-left:4px;">Project Overview</h2>
+  </div>
+  <div class="slide-body" style="flex-direction:row;gap:32px;padding-top:20px;">
+
+    <div style="flex:1;display:flex;flex-direction:column;gap:16px;">
+      <p style="font-size:14px;color:var(--subtext);line-height:1.7;">
+        A <strong style="color:var(--text);">residential cleaning service platform</strong> built as a
+        distributed microservice system using Spring Boot. Clients book cleaning sessions,
+        cleaners get auto-assigned via round-robin, and every state change triggers a
+        guaranteed Kafka event via the <strong style="color:var(--indigo-2);">Transactional Outbox Pattern</strong>.
+      </p>
+
+      <div class="divider"></div>
+
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div class="step">
+          <div class="step-dot" style="font-size:12px;">1</div>
+          <div>
+            <div style="font-weight:600;font-size:14px;">Client registers &amp; books</div>
+            <div style="font-size:12px;color:var(--muted);">Selects property, service type, date → price calculated in real-time</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-dot" style="font-size:12px;">2</div>
+          <div>
+            <div style="font-weight:600;font-size:14px;">Order paid → cleaner auto-assigned</div>
+            <div style="font-size:12px;color:var(--muted);">Round-robin algorithm picks available cleaner from pool</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-dot" style="font-size:12px;">3</div>
+          <div>
+            <div style="font-weight:600;font-size:14px;">Events published to Kafka</div>
+            <div style="font-size:12px;color:var(--muted);">All state transitions are durable events — at-least-once delivery</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="flex:1;display:flex;flex-direction:column;gap:12px;">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">Technology Stack</div>
+      <table class="report-table">
+        <tr><th>Layer</th><th>Technology</th></tr>
+        <tr><td>Language</td><td>Java 17</td></tr>
+        <tr><td>Framework</td><td>Spring Boot 3.x</td></tr>
+        <tr><td>Security</td><td>Spring Security + JWT</td></tr>
+        <tr><td>Database</td><td>PostgreSQL 16</td></tr>
+        <tr><td>Migrations</td><td>Flyway</td></tr>
+        <tr><td>Messaging</td><td class="mono">Apache Kafka 3.x + Outbox</td></tr>
+        <tr><td>Build</td><td>Maven (multi-module)</td></tr>
+        <tr><td>Deploy</td><td>Docker Compose</td></tr>
+      </table>
+    </div>
+
+  </div>
+  <div class="slide-num">Group 6 · 02 / 10</div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════
+     SLIDE 3 — COMPONENT DIAGRAM
+═══════════════════════════════════════════════ -->
+<div class="slide" id="s3">
+  <div class="footer-bar"></div>
+  <div class="slide-header">
+    <div class="logo-mark" style="width:38px;height:38px;font-size:18px;">🏗</div>
+    <div class="slide-section">Architecture</div>
+    <h2 class="slide-title">Component Diagram</h2>
+  </div>
+  <div class="slide-body" style="padding-top:16px;">
+    <div class="diagram-frame" style="flex:1;">
+      <img src="diagrams/component_diagram.png" alt="Component Diagram"
+           style="max-height:520px;"/>
+    </div>
+  </div>
+  <div class="slide-num">Group 6 · 03 / 10</div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════
+     SLIDE 4 — SERVICE MAP
+═══════════════════════════════════════════════ -->
+<div class="slide" id="s4">
+  <div class="footer-bar"></div>
+  <div class="slide-header">
+    <div class="logo-mark" style="width:38px;height:38px;font-size:18px;"><i class="fas fa-server" style="font-size:16px;"></i></div>
+    <div class="slide-section">Services</div>
+    <h2 class="slide-title">Service Port Map &amp; Responsibilities</h2>
+  </div>
+  <div class="slide-body" style="padding-top:20px;flex-direction:row;gap:28px;">
+
+    <!-- left: grid of services -->
+    <div style="flex:1.2;display:flex;flex-direction:column;gap:12px;">
+
+      <div style="display:flex;gap:12px;">
+        <div class="svc" style="border-color:rgba(99,102,241,.5);background:rgba(99,102,241,.08);flex:1;">
+          <i class="fas fa-lock" style="color:var(--indigo);"></i>
+          <strong style="color:var(--text);">IAC Service</strong>
+          <div style="font-size:11px;line-height:1.4;">Auth · Users · Roles · JWT</div>
+          <div class="port">:18080</div>
+        </div>
+        <div class="svc" style="border-color:rgba(217,70,239,.4);background:rgba(217,70,239,.06);flex:1;">
+          <i class="fas fa-house" style="color:var(--fuchsia);"></i>
+          <strong style="color:var(--text);">Property Service</strong>
+          <div style="font-size:11px;line-height:1.4;">Client properties &amp; validation</div>
+          <div class="port" style="color:var(--fuchsia);">:18081</div>
+        </div>
+        <div class="svc" style="border-color:rgba(245,158,11,.4);background:rgba(245,158,11,.06);flex:1;">
+          <i class="fas fa-tag" style="color:var(--amber);"></i>
+          <strong style="color:var(--text);">Pricing Service</strong>
+          <div style="font-size:11px;line-height:1.4;">Catalog · Price engine</div>
+          <div class="port" style="color:var(--amber);">:18082</div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;">
+        <div class="svc" style="border-color:rgba(16,185,129,.4);background:rgba(16,185,129,.06);flex:1;">
+          <i class="fas fa-list-check" style="color:var(--green);"></i>
+          <strong style="color:var(--text);">Order Service</strong>
+          <div style="font-size:11px;line-height:1.4;">Orders · Cleaners · Earnings<br/>+ Kafka producer &amp; consumer</div>
+          <div class="port" style="color:var(--green);">:18083</div>
+        </div>
+        <div class="svc" style="border-color:rgba(99,102,241,.3);background:rgba(30,41,59,.6);flex:1;">
+          <i class="fas fa-globe" style="color:var(--indigo-2);"></i>
+          <strong style="color:var(--text);">UI / Booking</strong>
+          <div style="font-size:11px;line-height:1.4;">Thymeleaf frontend<br/>+ reverse proxy</div>
+          <div class="port">:18090</div>
+        </div>
+        <div class="svc" style="border-color:rgba(217,70,239,.3);background:rgba(217,70,239,.06);flex:1;">
+          <i class="fas fa-bolt" style="color:var(--fuchsia);"></i>
+          <strong style="color:var(--text);">Kafka Broker</strong>
+          <div style="font-size:11px;line-height:1.4;">Confluent 7.6<br/>Event bus</div>
+          <div class="port" style="color:var(--fuchsia);">:19092</div>
+        </div>
+      </div>
+
+      <div class="card-accent" style="padding:12px 16px;">
+        <div style="font-size:11px;color:var(--muted);">Single PostgreSQL instance · Each service has its own DB + dedicated user</div>
+        <div style="font-size:12px;font-weight:600;color:var(--indigo-2);margin-top:4px;">
+          iac_db &nbsp;·&nbsp; property_db &nbsp;·&nbsp; pricing_db &nbsp;·&nbsp; order_db &nbsp;·&nbsp; booking_db
+        </div>
+      </div>
+    </div>
+
+    <!-- right: security note -->
+    <div style="flex:.8;display:flex;flex-direction:column;gap:12px;">
+      <div class="card" style="flex:1;">
+        <div style="font-size:12px;font-weight:700;color:var(--indigo-2);margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+          <i class="fas fa-shield-halved"></i> Security Model
+        </div>
+        <ul style="font-size:12px;color:var(--subtext);display:flex;flex-direction:column;gap:8px;list-style:none;">
+          <li><i class="fas fa-circle-check" style="color:var(--green);margin-right:8px;"></i>JWT issued by IAC Service</li>
+          <li><i class="fas fa-circle-check" style="color:var(--green);margin-right:8px;"></i>Shared JWT_SECRET via env var</li>
+          <li><i class="fas fa-circle-check" style="color:var(--green);margin-right:8px;"></i>Each service validates tokens independently</li>
+          <li><i class="fas fa-circle-check" style="color:var(--green);margin-right:8px;"></i>No IAC call on every request</li>
+          <li><i class="fas fa-circle-check" style="color:var(--green);margin-right:8px;"></i>RBAC: CLIENT · CLEANER · ADMIN</li>
+        </ul>
+      </div>
+      <div class="card" style="padding:14px 16px;">
+        <div style="font-size:12px;font-weight:700;color:var(--indigo-2);margin-bottom:8px;display:flex;align-items:center;gap:8px;">
+          <i class="fas fa-circle-nodes"></i> Inter-service calls
+        </div>
+        <div style="font-size:12px;color:var(--subtext);line-height:1.6;">
+          <span style="color:var(--green);">●</span> <strong>Synchronous REST</strong> — Price calc, property validation<br/>
+          <span style="color:var(--fuchsia);">●</span> <strong>Async Kafka</strong> — User events, order events
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <div class="slide-num">Group 6 · 04 / 10</div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════
+     SLIDE 5 — CLASS DIAGRAM
+═══════════════════════════════════════════════ -->
+<div class="slide" id="s5">
+  <div class="footer-bar"></div>
+  <div class="slide-header">
+    <div class="logo-mark" style="width:38px;height:38px;font-size:18px;"><i class="fas fa-diagram-project" style="font-size:16px;"></i></div>
+    <div class="slide-section">Domain Model</div>
+    <h2 class="slide-title">Class Diagram — Entity Model</h2>
+  </div>
+  <div class="slide-body" style="padding-top:16px;">
+    <div class="diagram-frame" style="flex:1;">
+      <img src="diagrams/class_diagram.png" alt="Class Diagram"
+           style="max-height:530px;"/>
+    </div>
+  </div>
+  <div class="slide-num">Group 6 · 05 / 10</div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════
+     SLIDE 6 — KAFKA + OUTBOX PATTERN
+═══════════════════════════════════════════════ -->
+<div class="slide" id="s6">
+  <div class="footer-bar"></div>
+  <div class="slide-header">
+    <div class="logo-mark" style="width:38px;height:38px;font-size:18px;"><i class="fas fa-bolt" style="font-size:16px;"></i></div>
+    <div class="slide-section">Messaging</div>
+    <h2 class="slide-title">Kafka + Transactional Outbox Pattern</h2>
+  </div>
+  <div class="slide-body" style="padding-top:16px;flex-direction:row;gap:28px;">
+
+    <div style="flex:1;display:flex;flex-direction:column;gap:14px;">
+
+      <!-- how it works -->
+      <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--indigo);">Why Outbox?</div>
+      <p style="font-size:13px;color:var(--subtext);line-height:1.65;">
+        Without it, a service could <strong style="color:var(--text);">commit the DB</strong> but <strong style="color:var(--red);">crash before sending to Kafka</strong> — losing the event forever.
+        With Outbox, both writes happen in <em>one atomic transaction</em>.
+      </p>
+
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div class="step">
+          <div class="step-dot">1</div>
+          <div>
+            <div style="font-weight:600;font-size:13px;">Atomic write (same DB transaction)</div>
+            <div style="font-size:12px;color:var(--muted);">Business record + outbox_events row committed together</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-dot">2</div>
+          <div>
+            <div style="font-weight:600;font-size:13px;">Relay polls every 5 seconds</div>
+            <div style="font-size:12px;color:var(--muted);">SELECT WHERE status=PENDING, publish to Kafka, mark PROCESSED</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-dot">3</div>
+          <div>
+            <div style="font-weight:600;font-size:13px;">Consumer reacts idempotently</div>
+            <div style="font-size:12px;color:var(--muted);">Order Service: auto-creates CleanerProfile on user/role events</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- kafka topics table -->
+      <div class="divider"></div>
+      <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);">Published Topics</div>
+      <table class="report-table" style="font-size:12px;">
+        <tr><th>Topic</th><th>Producer</th><th>Consumer</th></tr>
+        <tr><td class="mono">user.registered</td><td>IAC</td><td>Order</td></tr>
+        <tr><td class="mono">user.role_assigned</td><td>IAC</td><td>Order</td></tr>
+        <tr><td class="mono">order.created / confirmed</td><td>Order</td><td>future</td></tr>
+        <tr><td class="mono">order.completed / cancelled</td><td>Order</td><td>future</td></tr>
+      </table>
+    </div>
+
+    <div style="flex:1;display:flex;flex-direction:column;gap:12px;">
+      <pre style="flex:1;overflow:hidden;font-size:11.5px;">
+<span class="c-gray">// 1. Business TX — ONE transaction</span>
+<span class="c-violet">@Transactional</span>
+<span class="c-blue">public</span> AuthResponse <span class="c-yellow">register</span>(...) {
+  UserEntity user = userRepo.<span class="c-yellow">save</span>(newUser);
+
+  outboxPublisher.<span class="c-yellow">publish</span>(
+    <span class="c-green">"User"</span>, userId,
+    <span class="c-green">"user.registered"</span>,
+    UserRegisteredEvent.<span class="c-yellow">builder</span>()
+      .userId(user.getId())
+      .roles(roles)
+      .build()
+  ); <span class="c-gray">// ← same TX as user save</span>
+  <span class="c-blue">return</span> tokens;
+}
+
+<span class="c-gray">// 2. Relay — every 5 sec (async)</span>
+<span class="c-violet">@Scheduled</span>(fixedDelay = 5000)
+<span class="c-blue">void</span> <span class="c-yellow">relay</span>() {
+  outboxRepo.<span class="c-yellow">findPendingBatch</span>()
+    .forEach(e -> kafkaTemplate.<span class="c-yellow">send</span>(
+      e.getEventType(),
+      e.getAggregateId(),
+      e.getPayload()
+    ));
+}</pre>
+
+      <div class="card-accent" style="padding:12px 16px;display:flex;align-items:center;gap:12px;">
+        <i class="fas fa-check-double" style="color:var(--green);font-size:20px;"></i>
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--text);">At-Least-Once Delivery</div>
+          <div style="font-size:11px;color:var(--muted);">FAILED events are retried on next poll cycle. Consumers are idempotent.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <div class="slide-num">Group 6 · 06 / 10</div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════
+     SLIDE 7 — OUTBOX SEQUENCE DIAGRAM
+═══════════════════════════════════════════════ -->
+<div class="slide" id="s7">
+  <div class="footer-bar"></div>
+  <div class="slide-header">
+    <div class="logo-mark" style="width:38px;height:38px;font-size:18px;"><i class="fas fa-timeline" style="font-size:14px;"></i></div>
+    <div class="slide-section">Sequence</div>
+    <h2 class="slide-title">Outbox Relay — Sequence Diagram</h2>
+  </div>
+  <div class="slide-body" style="padding-top:16px;">
+    <div class="diagram-frame" style="flex:1;">
+      <img src="diagrams/sequence_kafka_outbox.png" alt="Kafka Outbox Sequence"
+           style="max-height:530px;"/>
+    </div>
+  </div>
+  <div class="slide-num">Group 6 · 07 / 10</div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════
+     SLIDE 8 — ORDER LIFECYCLE SEQUENCE
+═══════════════════════════════════════════════ -->
+<div class="slide" id="s8">
+  <div class="footer-bar"></div>
+  <div class="slide-header">
+    <div class="logo-mark" style="width:38px;height:38px;font-size:18px;"><i class="fas fa-arrows-turn-right" style="font-size:14px;"></i></div>
+    <div class="slide-section">Sequence</div>
+    <h2 class="slide-title">Order Lifecycle — Create → Pay → Complete</h2>
+  </div>
+  <div class="slide-body" style="padding-top:16px;">
+    <div class="diagram-frame" style="flex:1;">
+      <img src="diagrams/sequence_order_flow.png" alt="Order Lifecycle"
+           style="max-height:530px;"/>
+    </div>
+  </div>
+  <div class="slide-num">Group 6 · 08 / 10</div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════
+     SLIDE 9 — SHARED-LIB + BUILD SYSTEM
+═══════════════════════════════════════════════ -->
+<div class="slide" id="s9">
+  <div class="footer-bar"></div>
+  <div class="slide-header">
+    <div class="logo-mark" style="width:38px;height:38px;font-size:18px;"><i class="fas fa-cubes" style="font-size:14px;"></i></div>
+    <div class="slide-section">Build</div>
+    <h2 class="slide-title">Shared Library &amp; Multi-Module Build</h2>
+  </div>
+  <div class="slide-body" style="padding-top:16px;flex-direction:row;gap:28px;">
+
+    <div style="flex:1;display:flex;flex-direction:column;gap:14px;">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--indigo);">shared-lib Maven Module</div>
+      <p style="font-size:13px;color:var(--subtext);line-height:1.65;">
+        Extracted common Kafka event DTOs and topic constants into a standalone Maven module.
+        No Spring Boot dependency — pure Java. Installed to local repo inside Docker builder stage.
+      </p>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div class="card" style="padding:12px 16px;">
+          <div style="font-size:11px;color:var(--indigo-2);font-weight:700;margin-bottom:6px;">📦 shared-lib contents</div>
+          <ul style="font-size:12px;color:var(--subtext);list-style:none;display:flex;flex-direction:column;gap:4px;">
+            <li><span style="color:var(--fuchsia);">●</span> KafkaTopics.java</li>
+            <li><span style="color:var(--fuchsia);">●</span> UserRegisteredEvent</li>
+            <li><span style="color:var(--fuchsia);">●</span> UserRoleAssignedEvent</li>
+            <li><span style="color:var(--fuchsia);">●</span> OrderCreatedEvent</li>
+            <li><span style="color:var(--fuchsia);">●</span> OrderConfirmedEvent</li>
+            <li><span style="color:var(--fuchsia);">●</span> OrderCompletedEvent</li>
+            <li><span style="color:var(--fuchsia);">●</span> OrderCancelledEvent</li>
+          </ul>
+        </div>
+        <div class="card" style="padding:12px 16px;">
+          <div style="font-size:11px;color:var(--indigo-2);font-weight:700;margin-bottom:6px;">🔄 Outbox Stack (per service)</div>
+          <ul style="font-size:12px;color:var(--subtext);list-style:none;display:flex;flex-direction:column;gap:4px;">
+            <li><span style="color:var(--green);">●</span> OutboxEventEntity</li>
+            <li><span style="color:var(--green);">●</span> OutboxEventRepository</li>
+            <li><span style="color:var(--green);">●</span> OutboxPublisher</li>
+            <li><span style="color:var(--green);">●</span> OutboxRelayScheduler</li>
+            <li><span style="color:var(--green);">●</span> V3__outbox_events.sql</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div style="flex:1;display:flex;flex-direction:column;gap:12px;">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--indigo);">Docker Build Strategy</div>
+      <pre style="flex:1;font-size:11.5px;overflow:hidden;">
+<span class="c-gray"># Multi-stage build (iac-service &amp; order-service)</span>
+<span class="c-blue">FROM</span> maven:3.9.6-eclipse-temurin-17 <span class="c-blue">AS</span> builder
+
+<span class="c-gray"># Step 1 — install shared-lib to local Maven repo</span>
+<span class="c-yellow">COPY</span> shared-lib/pom.xml shared-lib/pom.xml
+<span class="c-yellow">COPY</span> shared-lib/src     shared-lib/src
+<span class="c-yellow">RUN</span>  mvn -f shared-lib/pom.xml clean install -q
+
+<span class="c-gray"># Step 2 — cache service deps</span>
+<span class="c-yellow">COPY</span> iac-service/pom.xml iac-service/pom.xml
+<span class="c-yellow">RUN</span>  mvn -f iac-service/pom.xml dependency:go-offline -q
+
+<span class="c-gray"># Step 3 — build service JAR</span>
+<span class="c-yellow">COPY</span> iac-service/src iac-service/src
+<span class="c-yellow">RUN</span>  mvn -f iac-service/pom.xml clean package -DskipTests -q
+
+<span class="c-blue">FROM</span> eclipse-temurin:17-jre <span class="c-blue">AS</span> runtime
+<span class="c-yellow">COPY</span> --from=builder /build/iac-service/target/*.jar app.jar</pre>
+    </div>
+
+  </div>
+  <div class="slide-num">Group 6 · 09 / 10</div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════
+     SLIDE 10 — STATUS & CONCLUSION
+═══════════════════════════════════════════════ -->
+<div class="slide" id="s10">
+  <div class="footer-bar"></div>
+
+  <!-- top glow -->
+  <div style="position:absolute;bottom:-100px;left:50%;transform:translateX(-50%);
+    width:600px;height:300px;
+    background:radial-gradient(circle,rgba(99,102,241,.15) 0%,transparent 70%);pointer-events:none;"></div>
+
+  <div class="slide-header">
+    <div class="logo-mark" style="width:38px;height:38px;font-size:18px;"><i class="fas fa-flag-checkered" style="font-size:14px;"></i></div>
+    <div class="slide-section">Results</div>
+    <h2 class="slide-title">Current Status &amp; Conclusion</h2>
+  </div>
+
+  <div class="slide-body" style="padding-top:16px;flex-direction:row;gap:28px;">
+
+    <div style="flex:1.1;display:flex;flex-direction:column;gap:12px;">
+
+      <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);">Container Health</div>
+
+      <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;background:var(--card);border-radius:8px;border:1px solid var(--border);">
+          <span><i class="fas fa-database" style="color:var(--indigo);margin-right:8px;"></i>cleaning-postgres</span>
+          <span class="badge-ok">✓ healthy</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;background:var(--card);border-radius:8px;border:1px solid var(--border);">
+          <span><i class="fas fa-bolt" style="color:var(--fuchsia);margin-right:8px;"></i>cleaning-kafka + zookeeper</span>
+          <span class="badge-ok">✓ healthy</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;background:var(--card);border-radius:8px;border:1px solid var(--border);">
+          <span><i class="fas fa-lock" style="color:var(--indigo-2);margin-right:8px;"></i>iac-service :18080</span>
+          <span class="badge-ok">✓ healthy</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;background:var(--card);border-radius:8px;border:1px solid var(--border);">
+          <span><i class="fas fa-list-check" style="color:var(--green);margin-right:8px;"></i>order-service :18083</span>
+          <span class="badge-ok">✓ up · Kafka consumers online</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;background:var(--card);border-radius:8px;border:1px solid var(--border);">
+          <span><i class="fas fa-tag" style="color:var(--amber);margin-right:8px;"></i>property + pricing services</span>
+          <span class="badge-ok">✓ up</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 14px;background:var(--card);border-radius:8px;border:1px solid var(--border);">
+          <span><i class="fas fa-globe" style="color:var(--indigo-2);margin-right:8px;"></i>iac-ui :18090</span>
+          <span class="badge-ok">✓ healthy</span>
+        </div>
+      </div>
+
+      <div class="card-accent" style="padding:10px 16px;margin-top:4px;">
+        <code style="font-size:12px;color:var(--indigo-2);">POST /api/v1/auth/register → 201 Created ✓</code>
+      </div>
+    </div>
+
+    <div style="flex:.9;display:flex;flex-direction:column;gap:14px;justify-content:space-between;">
+      <div>
+        <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">Deliverables</div>
+        <ul style="font-size:13px;color:var(--subtext);list-style:none;display:flex;flex-direction:column;gap:8px;">
+          <li><i class="fas fa-check" style="color:var(--green);margin-right:8px;"></i>shared-lib Maven module</li>
+          <li><i class="fas fa-check" style="color:var(--green);margin-right:8px;"></i>Transactional Outbox (IAC + Order)</li>
+          <li><i class="fas fa-check" style="color:var(--green);margin-right:8px;"></i>Kafka consumer (UserEventConsumer)</li>
+          <li><i class="fas fa-check" style="color:var(--green);margin-right:8px;"></i>6 Kafka topics defined</li>
+          <li><i class="fas fa-check" style="color:var(--green);margin-right:8px;"></i>5 PlantUML diagrams (incl. new Outbox)</li>
+          <li><i class="fas fa-check" style="color:var(--green);margin-right:8px;"></i>PDF report (13 sections, 1.3 MB)</li>
+          <li><i class="fas fa-check" style="color:var(--green);margin-right:8px;"></i>destroy.sh + run.sh scripts</li>
+          <li><i class="fas fa-check" style="color:var(--green);margin-right:8px;"></i>docker-compose.yml (Kafka + Zookeeper)</li>
+        </ul>
+      </div>
+
+      <div style="background:var(--grad);border-radius:16px;padding:20px 24px;text-align:center;">
+        <div style="font-size:28px;font-weight:800;letter-spacing:-.02em;">Group 6</div>
+        <div style="font-size:14px;opacity:.85;margin-top:4px;">Cleaning Platform · J2EE Project 2</div>
+        <div style="font-size:13px;opacity:.7;margin-top:8px;">
+          Semester 4 · Humber College
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <div class="slide-num">Group 6 · 10 / 10</div>
+</div>
+
+</body>
+</html>

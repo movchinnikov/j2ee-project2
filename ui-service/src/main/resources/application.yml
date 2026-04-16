@@ -1,0 +1,27 @@
+server:
+  port: 8090
+
+spring:
+  application:
+    name: ui-service
+  thymeleaf:
+    cache: false
+    prefix: classpath:/templates/
+    suffix: .html
+
+services:
+  iac-url: ${IAC_SERVICE_URL:http://localhost:18080}
+  property-url: ${PROPERTY_SERVICE_URL:http://localhost:18081}
+  pricing-url: ${PRICING_SERVICE_URL:http://localhost:18082}
+  order-url: ${ORDER_SERVICE_URL:http://localhost:18083}
+
+# backwards compat
+iac:
+  service:
+    url: ${IAC_SERVICE_URL:http://localhost:18080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

@@ -1,0 +1,69 @@
+# ─────────────────────────────────────────────────────────
+#  J2EE Cleaning Platform — .gitignore
+# ─────────────────────────────────────────────────────────
+
+# ── Maven build output ────────────────────────────────────
+**/target/
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# ── IDE ───────────────────────────────────────────────────
+.idea/
+*.iws
+*.iml
+*.ipr
+.vscode/
+*.code-workspace
+.classpath
+.project
+.settings/
+
+# ── OS ────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Java / Spring ─────────────────────────────────────────
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+
+# ── Logs ──────────────────────────────────────────────────
+logs/
+*.log
+spring.log
+
+# ── Docker volumes / overrides ────────────────────────────
+docker-compose.override.yml
+.env
+.env.*
+!.env.example
+
+# ── Secrets / local configs ───────────────────────────────
+**/application-local*.yml
+**/application-local*.yaml
+secrets/
+
+# ── Node / frontend ───────────────────────────────────────
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# ── Generated diagrams (keep .puml, ignore .png/.svg) ─────
+docs/diagrams/*.png
+docs/diagrams/*.svg
+
+# ── Report build artefacts ────────────────────────────────
+docs/report/report.pdf
+
+# ── IntelliJ / Eclipse run configs ───────────────────────
+*.launch
+*.tmproj
+
+# ── Test coverage ─────────────────────────────────────────
+**/jacoco.exec
+**/coverage/

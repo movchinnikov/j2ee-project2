@@ -1,0 +1,101 @@
+@startuml sequence_order_flow
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam SequenceArrowColor #333333
+skinparam SequenceLifeLineBorderColor #333333
+skinparam SequenceParticipantBorderColor #333333
+skinparam NoteBackgroundColor #FFFFFF
+skinparam NoteBorderColor #333333
+
+title Sequence: Full Order Lifecycle (Create → Pay → Complete) + Kafka Outbox Events
+
+actor "Client\n(ROLE_CLIENT)" as CLIENT
+actor "Cleaner\n(ROLE_CLEANER)" as CLEANER
+participant "Order Service\n:18083" as ORDER_SVC
+participant "Property Service\n:18081" as PROP_SVC
+participant "Pricing Service\n:18082" as PRICE_SVC
+participant "OrderService\n(business logic)" as ORDER_BIZ
+participant "RoundRobinAssigner" as RR
+participant "OutboxRelayScheduler" as RELAY
+participant "Apache Kafka" as KAFKA
+database "order_entity\ncleaner_profile\nearning_entity\noutbox_events" as DB
+
+== Step 1: Client Creates Order ==
+
+CLIENT -> ORDER_SVC : POST /api/v1/orders\n{propertyId, serviceTypeCode,\naddonCodes, frequency, scheduledDate}
+ORDER_SVC -> PROP_SVC : GET /api/v1/properties/{id}/validate\n?clientId=<clientId>
+note right of PROP_SVC
+  Validates ownership:
+  property exists AND belongs
+  to this client
+end note
+
+alt Property valid
+  PROP_SVC --> ORDER_SVC : 200 OK PropertyResponse
+  ORDER_SVC -> PRICE_SVC : POST /api/v1/pricing/calculate\n{areaSqm, bathroomsCount,\nserviceTypeCode, addonCodes, frequency}
+  PRICE_SVC --> ORDER_SVC : 200 OK PricingResult\n{basePrice, addonsPrice,\ndiscountPercent, totalPrice}
+  ORDER_SVC -> ORDER_BIZ : createOrder(clientId, propertyId, pricing)
+  ORDER_BIZ -> DB : INSERT order (status=PENDING)
+  ORDER_BIZ -> DB : INSERT outbox_events\n{type: order.created, status: PENDING}
+  DB --> ORDER_BIZ : OrderEntity
+  ORDER_BIZ --> ORDER_SVC : OrderResponse
+  ORDER_SVC --> CLIENT : 201 Created\n{status: PENDING, totalPrice: 92.75}
+  RELAY -> KAFKA : [async ~5 sec] order.created
+else Property not found / not owned
+  PROP_SVC --> ORDER_SVC : 404 Not Found
+  ORDER_SVC --> CLIENT : 400 Bad Request\n{error: "Property validation failed"}
+end
+
+== Step 2: Client Pays ==
+
+CLIENT -> ORDER_SVC : POST /api/v1/orders/{id}/pay
+ORDER_SVC -> ORDER_BIZ : payOrder(orderId, clientId)
+ORDER_BIZ -> DB : SELECT order WHERE id AND clientId AND status=PENDING
+DB --> ORDER_BIZ : OrderEntity (PENDING)
+ORDER_BIZ -> RR : assignCleaner(order)
+RR -> DB : SELECT cleaner_profiles WHERE is_available=true
+DB --> RR : List<CleanerProfile> (sorted by lastAssigned asc)
+
+alt Cleaners available
+  RR --> ORDER_BIZ : CleanerProfile (round-robin selected)
+  ORDER_BIZ -> DB : UPDATE order SET status=CONFIRMED,\ncleaner_id=<selected>
+  ORDER_BIZ -> DB : UPDATE cleaner SET last_assigned=NOW()
+  ORDER_BIZ -> DB : INSERT outbox_events\n{type: order.confirmed, status: PENDING}
+  DB --> ORDER_BIZ : OK
+  ORDER_BIZ --> ORDER_SVC : OrderResponse (CONFIRMED)
+  ORDER_SVC --> CLIENT : 200 OK\n{status: CONFIRMED,\nmessage: "Cleaner assigned: <cleanerId>"}
+  RELAY -> KAFKA : [async ~5 sec] order.confirmed
+else No cleaners available
+  ORDER_BIZ -> DB : UPDATE order SET status=CONFIRMED,\ncleaner_id=null
+  ORDER_BIZ --> ORDER_SVC : OrderResponse (CONFIRMED, no cleaner)
+  ORDER_SVC --> CLIENT : 200 OK\n{status: CONFIRMED,\nmessage: "Cleaner assigned: TBD"}
+end
+
+== Step 3: Cleaner Completes Order ==
+
+CLEANER -> ORDER_SVC : POST /api/v1/cleaner/orders/{id}/complete
+ORDER_SVC -> ORDER_BIZ : completeOrder(orderId, cleanerUserId)
+ORDER_BIZ -> DB : SELECT order WHERE id AND cleaner_id AND status=CONFIRMED
+DB --> ORDER_BIZ : OrderEntity (CONFIRMED)
+ORDER_BIZ -> DB : UPDATE order SET status=COMPLETED
+ORDER_BIZ -> DB : INSERT earning_entity\n{cleanerId, orderId, amount=totalPrice*0.60}
+ORDER_BIZ -> DB : INSERT outbox_events\n{type: order.completed, status: PENDING}
+DB --> ORDER_BIZ : EarningEntity
+ORDER_BIZ --> ORDER_SVC : OrderResponse (COMPLETED)
+ORDER_SVC --> CLEANER : 200 OK\n{status: COMPLETED, message: "Completed"}
+RELAY -> KAFKA : [async ~5 sec] order.completed
+
+== Alternative: Client Cancels ==
+
+CLIENT -> ORDER_SVC : DELETE /api/v1/orders/{id}?reason=...
+ORDER_SVC -> ORDER_BIZ : cancelOrder(orderId, clientId, reason)
+ORDER_BIZ -> DB : SELECT order WHERE (status=PENDING OR CONFIRMED)
+ORDER_BIZ -> DB : UPDATE order SET status=CANCELLED,\ncancellation_reason=reason
+ORDER_BIZ -> DB : INSERT outbox_events\n{type: order.cancelled, status: PENDING}
+ORDER_BIZ --> ORDER_SVC : OrderResponse (CANCELLED)
+ORDER_SVC --> CLIENT : 200 OK {status: CANCELLED}
+RELAY -> KAFKA : [async ~5 sec] order.cancelled
+
+@enduml

@@ -1,0 +1,88 @@
+spring:
+  application:
+    name: iac-service
+
+  datasource:
+    url: jdbc:postgresql://localhost:15432/iac_db
+    username: iac_user
+    password: iac_secret_pass
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        # IAC uses the default public schema
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+    repair-on-migrate: true
+
+  kafka:
+    bootstrap-servers: localhost:19092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      retries: 3
+
+server:
+  port: 18080
+  servlet:
+    context-path: /
+
+# JWT Configuration
+jwt:
+  secret: "J2EE-IAC-Service-Super-Secret-Key-2024-Change-This-In-Production!!"
+  access-token-expiry-ms: 900000        # 15 minutes
+  refresh-token-expiry-ms: 604800000    # 7 days
+
+# Super Admin Bootstrap
+app:
+  superadmin:
+    username: admin
+    email: admin@project.local
+    password: password
+    first-name: Super
+    last-name: Admin
+
+# Springdoc / Swagger
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+    try-it-out-enabled: true
+  show-actuator: false
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+  endpoint:
+    health:
+      show-details: always
+
+outbox:
+  relay:
+    interval-ms: 5000
+
+logging:
+  level:
+    com.project.iac: DEBUG
+    org.springframework.security: INFO

@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Dashboard — Cleaning Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<style>
+/* ── Design Tokens ─────────────────────────────────────────── */
+:root {
+  --bg:#080b12; --surface:#0f111a; --card:#141826; --card2:#1a1f30;
+  --accent:#7c6aff; --accent2:#ff6b9d; --green:#34d399; --orange:#fb923c;
+  --text:#e2e8f0; --muted:#64748b; --border:#1e243a;
+  --sidebar-w:260px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;}
+a{color:inherit;text-decoration:none;}
+
+/* ── Sidebar ─────────────────────────────────────────────── */
+.sidebar{width:var(--sidebar-w);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:1.5rem 0;position:fixed;top:0;left:0;height:100vh;z-index:100;}
+.sidebar-logo{display:flex;align-items:center;gap:.75rem;padding:0 1.5rem 1.5rem;border-bottom:1px solid var(--border);margin-bottom:1rem;}
+.logo-icon{width:38px;height:38px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;}
+.logo-text{font-weight:700;font-size:1rem;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.user-info{padding:.75rem 1.5rem;margin-bottom:.5rem;}
+.user-badge{background:rgba(124,106,255,.1);border:1px solid rgba(124,106,255,.2);border-radius:8px;padding:.5rem .75rem;display:flex;align-items:center;gap:.5rem;font-size:.83rem;}
+.role-pill{padding:.2rem .5rem;border-radius:6px;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;}
+.pill-SUPER_ADMIN,.pill-ADMIN{background:rgba(251,146,60,.15);color:var(--orange);}
+.pill-CLIENT{background:rgba(52,211,153,.15);color:var(--green);}
+.pill-CLEANER{background:rgba(124,106,255,.2);color:var(--accent);}
+
+.nav-section{padding:.25rem 1.5rem .25rem;font-size:.7rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:.5rem;}
+.nav-item{display:flex;align-items:center;gap:.75rem;padding:.65rem 1.5rem;cursor:pointer;transition:all .15s;font-size:.9rem;font-weight:500;border-left:3px solid transparent;}
+.nav-item:hover{background:rgba(124,106,255,.06);color:var(--text);}
+.nav-item.active{border-left-color:var(--accent);background:rgba(124,106,255,.1);color:var(--accent);}
+.nav-item .icon{width:20px;text-align:center;font-size:1rem;}
+.nav-item .lbl{flex:1;}
+.sidebar-footer{margin-top:auto;padding:1rem 1.5rem;border-top:1px solid var(--border);}
+.logout-btn{width:100%;padding:.6rem;background:rgba(255,107,157,.1);border:1px solid rgba(255,107,157,.2);border-radius:8px;color:var(--accent2);cursor:pointer;font-size:.88rem;font-weight:600;transition:all .2s;}
+.logout-btn:hover{background:rgba(255,107,157,.2);}
+
+/* ── Main ────────────────────────────────────────────────── */
+.main{margin-left:var(--sidebar-w);flex:1;padding:2rem;min-height:100vh;}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:2rem;}
+.page-title{font-size:1.5rem;font-weight:700;}
+.topbar-right{display:flex;gap:.75rem;align-items:center;}
+
+/* ── Page sections ───────────────────────────────────────── */
+.page{display:none;}
+.page.active{display:block;}
+
+/* ── Cards ───────────────────────────────────────────────── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:1.5rem;}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem;margin-bottom:2rem;}
+.stat-card{background:var(--card2);border:1px solid var(--border);border-radius:14px;padding:1.25rem;}
+.stat-card .label{font-size:.8rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-bottom:.5rem;}
+.stat-card .value{font-size:1.8rem;font-weight:700;}
+.stat-card .sub{font-size:.8rem;color:var(--muted);margin-top:.2rem;}
+
+/* ── Forms ───────────────────────────────────────────────── */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+.form-field{display:flex;flex-direction:column;gap:.4rem;}
+.form-field.full{grid-column:1/-1;}
+.form-field label{font-size:.8rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;}
+.form-field input,.form-field select,.form-field textarea{padding:.7rem .9rem;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:.92rem;outline:none;transition:border-color .2s;font-family:inherit;}
+.form-field input:focus,.form-field select:focus,.form-field textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,106,255,.15);}
+.form-field select option{background:var(--card);}
+.form-field textarea{resize:vertical;min-height:80px;}
+.submit-btn{padding:.75rem 1.5rem;background:linear-gradient(135deg,var(--accent),#6b5ce7);color:white;border:none;border-radius:10px;font-size:.95rem;font-weight:600;cursor:pointer;transition:all .2s;}
+.submit-btn:hover{transform:translateY(-1px);box-shadow:0 8px 25px rgba(124,106,255,.3);}
+.submit-btn:disabled{opacity:.6;cursor:not-allowed;transform:none;}
+
+/* ── Table ──────────────────────────────────────────────── */
+.table-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--border);}
+table{width:100%;border-collapse:collapse;font-size:.88rem;}
+th{background:var(--card2);padding:.75rem 1rem;text-align:left;font-size:.76rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);}
+td{padding:.8rem 1rem;border-bottom:1px solid var(--border);}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:rgba(124,106,255,.04);}
+
+/* ── Status badges ───────────────────────────────────────── */
+.badge{display:inline-flex;align-items:center;padding:.25rem .6rem;border-radius:6px;font-size:.74rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;}
+.badge-PENDING{background:rgba(251,146,60,.15);color:var(--orange);}
+.badge-CONFIRMED{background:rgba(52,211,153,.15);color:var(--green);}
+.badge-IN_PROGRESS{background:rgba(124,106,255,.2);color:var(--accent);}
+.badge-COMPLETED{background:rgba(52,211,153,.2);color:var(--green);}
+.badge-CANCELLED{background:rgba(255,107,157,.1);color:var(--accent2);}
+.badge-REPLACEMENT_REQUESTED{background:rgba(251,146,60,.2);color:var(--orange);}
+
+/* ── Sections ────────────────────────────────────────────── */
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;}
+.section-title{font-size:1.1rem;font-weight:700;}
+.btn-sm{padding:.45rem .9rem;border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer;border:none;transition:all .2s;}
+.btn-primary{background:var(--accent);color:white;}
+.btn-primary:hover{background:#6b5ce7;}
+.btn-danger{background:rgba(255,107,157,.15);color:var(--accent2);border:1px solid rgba(255,107,157,.3);}
+.btn-danger:hover{background:rgba(255,107,157,.25);}
+.btn-success{background:rgba(52,211,153,.15);color:var(--green);border:1px solid rgba(52,211,153,.3);}
+.btn-success:hover{background:rgba(52,211,153,.25);}
+
+/* ── Alert ───────────────────────────────────────────────── */
+.alert{padding:.75rem 1rem;border-radius:10px;font-size:.88rem;margin-bottom:1rem;}
+.alert-ok{background:rgba(52,211,153,.1);border:1px solid var(--green);color:var(--green);}
+.alert-err{background:rgba(255,107,157,.1);border:1px solid var(--accent2);color:var(--accent2);}
+
+/* ── Catalog cards ───────────────────────────────────────── */
+.catalog-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;}
+.catalog-item{background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:1rem;}
+.catalog-item h4{font-size:.95rem;margin-bottom:.4rem;}
+.catalog-item .price{font-size:1.3rem;font-weight:700;color:var(--accent);}
+.catalog-item p{font-size:.8rem;color:var(--muted);margin-top:.3rem;}
+
+/* ── Calendar ────────────────────────────────────────────── */
+.schedule-list{display:flex;flex-direction:column;gap:.75rem;}
+.schedule-item{background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:1rem;display:flex;align-items:center;gap:1rem;}
+.schedule-item.series-sibling{border-left:3px solid var(--accent);margin-left:1rem;opacity:.9;}
+.schedule-date{background:var(--accent);color:white;border-radius:10px;padding:.5rem .75rem;text-align:center;min-width:60px;}
+.schedule-date.date-future{background:var(--card2);border:1px solid var(--border);color:var(--muted);}
+.schedule-date .day{font-size:1.4rem;font-weight:700;line-height:1;}
+.schedule-date .month{font-size:.68rem;text-transform:uppercase;opacity:.8;}
+.schedule-info{flex:1;}
+.schedule-info h4{font-size:.95rem;font-weight:600;}
+.schedule-info p{font-size:.82rem;color:var(--muted);}
+.schedule-actions{display:flex;gap:.5rem;}
+.series-badge{display:inline-flex;align-items:center;gap:.3rem;background:rgba(124,106,255,.15);border:1px solid rgba(124,106,255,.3);color:var(--accent);padding:.15rem .5rem;border-radius:5px;font-size:.7rem;font-weight:700;margin-left:.5rem;}
+.date-preview-box{background:rgba(124,106,255,.06);border:1px solid rgba(124,106,255,.2);border-radius:10px;padding:.75rem 1rem;margin:.75rem 0;}
+.date-preview-box .dp-title{font-size:.78rem;font-weight:700;color:var(--accent);margin-bottom:.5rem;}
+.date-preview-box .dp-dates{display:flex;flex-wrap:wrap;gap:.4rem;}
+.date-chip{background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:.2rem .6rem;font-size:.78rem;color:var(--subtext);}
+
+.hidden{display:none!important;}
+.loading{color:var(--muted);padding:2rem;text-align:center;}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;margin-right:.4rem;vertical-align:middle;}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<!-- ═══════════════════════ SIDEBAR ═══════════════════════ -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-icon">🧹</div>
+    <span class="logo-text">CleanPlatform</span>
+  </div>
+
+  <div class="user-info">
+    <div class="user-badge">
+      <span id="sidebarUsername" style="flex:1;font-weight:600;">Loading...</span>
+      <span id="sidebarRole" class="role-pill"></span>
+    </div>
+  </div>
+
+  <!-- Common -->
+  <div class="nav-section">Overview</div>
+  <div class="nav-item active" onclick="showPage('home')"><span class="icon">🏠</span><span class="lbl">Dashboard</span></div>
+  <div class="nav-item" onclick="showPage('catalog')"><span class="icon">📋</span><span class="lbl">Service Catalog</span></div>
+
+  <!-- CLIENT section -->
+  <div class="nav-section client-only hidden">My Account</div>
+  <div class="nav-item client-only hidden" onclick="showPage('properties')"><span class="icon">🏘️</span><span class="lbl">My Properties</span></div>
+  <div class="nav-item client-only hidden" onclick="showPage('newOrder')"><span class="icon">➕</span><span class="lbl">Book Cleaning</span></div>
+  <div class="nav-item client-only hidden" onclick="showPage('myOrders')"><span class="icon">📦</span><span class="lbl">My Orders</span></div>
+
+  <!-- CLEANER section -->
+  <div class="nav-section cleaner-only hidden">My Work</div>
+  <div class="nav-item cleaner-only hidden" onclick="showPage('schedule')"><span class="icon">📅</span><span class="lbl">Schedule</span></div>
+  <div class="nav-item cleaner-only hidden" onclick="showPage('earnings')"><span class="icon">💰</span><span class="lbl">Earnings</span></div>
+
+  <!-- ADMIN section -->
+  <div class="nav-section admin-only hidden">Administration</div>
+  <div class="nav-item admin-only hidden" onclick="showPage('adminOrders')"><span class="icon">📊</span><span class="lbl">All Orders</span></div>
+  <div class="nav-item admin-only hidden" onclick="showPage('adminUsers')"><span class="icon">👥</span><span class="lbl">Users</span></div>
+
+  <div class="sidebar-footer">
+    <button class="logout-btn" onclick="doLogout()">Sign Out</button>
+  </div>
+</aside>
+
+<!-- ═══════════════════════ MAIN ═══════════════════════════ -->
+<main class="main">
+
+  <!-- ── Home ─────────────────────────────── -->
+  <div id="page-home" class="page active">
+    <div class="topbar">
+      <div class="page-title">Dashboard</div>
+    </div>
+    <div class="stat-grid" id="statGrid">
+      <div class="stat-card"><div class="label">Role</div><div class="value" id="statRole">—</div></div>
+      <div class="stat-card"><div class="label">Username</div><div class="value" id="statUser" style="font-size:1.2rem">—</div></div>
+    </div>
+    <div class="card">
+      <div class="section-title" style="margin-bottom:1rem;">Quick Links</div>
+      <div style="display:flex;gap:.75rem;flex-wrap:wrap;">
+        <a href="http://localhost:18080/swagger-ui.html" target="_blank"><button class="btn-sm btn-primary">IAC Swagger</button></a>
+        <a href="http://localhost:18081/swagger-ui.html" target="_blank"><button class="btn-sm btn-primary">Property Swagger</button></a>
+        <a href="http://localhost:18082/swagger-ui.html" target="_blank"><button class="btn-sm btn-primary">Pricing Swagger</button></a>
+        <a href="http://localhost:18083/swagger-ui.html" target="_blank"><button class="btn-sm btn-primary">Order Swagger</button></a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Catalog ───────────────────────────── -->
+  <div id="page-catalog" class="page">
+    <div class="topbar"><div class="page-title">Service Catalog</div></div>
+    <div class="section-header"><div class="section-title">Cleaning Services</div></div>
+    <div id="catalogServices" class="catalog-grid loading">Loading...</div>
+    <div class="section-header" style="margin-top:2rem;"><div class="section-title">Service Addons</div></div>
+    <div id="catalogAddons" class="catalog-grid loading">Loading...</div>
+  </div>
+
+  <!-- ── Properties (CLIENT) ───────────────── -->
+  <div id="page-properties" class="page">
+    <div class="topbar"><div class="page-title">My Properties</div></div>
+    <div id="propAlert"></div>
+    <div class="section-header">
+      <div class="section-title">Properties</div>
+      <button class="btn-sm btn-primary" onclick="toggleAddProp()">+ Add Property</button>
+    </div>
+    <div id="addPropForm" class="card hidden" style="margin-bottom:1.5rem;">
+      <div class="form-grid">
+        <div class="form-field"><label>Name</label><input id="pName" type="text" placeholder="My Apartment"/></div>
+        <div class="form-field"><label>Type</label>
+          <select id="pType"><option value="APARTMENT">Apartment</option><option value="HOUSE">House</option><option value="OFFICE">Office</option></select>
+        </div>
+        <div class="form-field"><label>Area (sqm)</label><input id="pArea" type="number" placeholder="65"/></div>
+        <div class="form-field"><label>Bathrooms</label><input id="pBath" type="number" value="1" min="1" max="10"/></div>
+        <div class="form-field full"><label>Address</label><input id="pAddr" type="text" placeholder="123 Main St, Toronto"/></div>
+        <div class="form-field full"><label>Notes (optional)</label><textarea id="pNotes" placeholder="Special instructions..."></textarea></div>
+      </div>
+      <div style="margin-top:1rem;"><button class="submit-btn" onclick="saveProperty()">Save Property</button></div>
+    </div>
+    <div class="table-wrap">
+      <table><thead><tr><th>Name</th><th>Type</th><th>Area</th><th>Bathrooms</th><th>Address</th></tr></thead>
+      <tbody id="propsTable"><tr><td colspan="5" class="loading">Loading...</td></tr></tbody></table>
+    </div>
+  </div>
+
+  <!-- ── Book Order (CLIENT) ───────────────── -->
+  <div id="page-newOrder" class="page">
+    <div class="topbar"><div class="page-title">Book Cleaning</div></div>
+    <div id="orderAlert"></div>
+    <div class="card">
+      <div class="form-grid">
+        <div class="form-field"><label>Property</label><select id="oProperty"></select></div>
+        <div class="form-field"><label>Service Type</label><select id="oService"></select></div>
+        <div class="form-field"><label>Frequency</label>
+          <select id="oFreq" onchange="updateDatePreview()">
+            <option value="ONE_TIME">One Time</option>
+            <option value="WEEKLY">Weekly (−15%) · 8 sessions</option>
+            <option value="BIWEEKLY">Bi-weekly (−10%) · 6 sessions</option>
+            <option value="MONTHLY">Monthly (−5%) · 3 sessions</option>
+          </select>
+        </div>
+        <div class="form-field"><label>First Date</label><input id="oDate" type="datetime-local" onchange="updateDatePreview()"/></div>
+        <div class="form-field full">
+          <label>Addons</label>
+          <div id="addonCheckboxes" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:.5rem;margin-top:.25rem;"></div>
+        </div>
+        <div class="form-field full"><label>Notes</label><textarea id="oNotes" placeholder="Any special instructions..."></textarea></div>
+      </div>
+      <div id="datePreviewBox" class="date-preview-box hidden">
+        <div class="dp-title">📅 Session schedule preview</div>
+        <div class="dp-dates" id="datePreviewDates"></div>
+      </div>
+      <div id="pricePreview" class="hidden" style="margin:1rem 0;padding:1rem;background:rgba(124,106,255,.08);border:1px solid rgba(124,106,255,.2);border-radius:10px;"></div>
+      <div style="display:flex;gap:.75rem;margin-top:1rem;">
+        <button class="submit-btn" style="background:var(--surface);border:1px solid var(--border);color:var(--muted);" onclick="calcPrice()">Calculate Price</button>
+        <button class="submit-btn" onclick="createOrder()">Book Now</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── My Orders (CLIENT) ───────────────── -->
+  <div id="page-myOrders" class="page">
+    <div class="topbar"><div class="page-title">My Orders</div></div>
+    <div id="ordersAlert" style="display:none"></div>
+    <div class="table-wrap">
+      <table><thead><tr><th>ID</th><th>Property</th><th>Service</th><th>Date</th><th>Freq</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
+      <tbody id="ordersTable"><tr><td colspan="8" class="loading">Loading...</td></tr></tbody></table>
+    </div>
+  </div>
+
+  <!-- ── Schedule (CLEANER) ───────────────── -->
+  <div id="page-schedule" class="page">
+    <div class="topbar"><div class="page-title">My Schedule</div></div>
+    <div id="scheduleAlert"></div>
+    <div id="scheduleList" class="schedule-list"><p class="loading">Loading...</p></div>
+  </div>
+
+  <!-- ── Earnings (CLEANER) ───────────────── -->
+  <div id="page-earnings" class="page">
+    <div class="topbar"><div class="page-title">Earnings</div></div>
+    <div class="stat-grid">
+      <div class="stat-card"><div class="label">Total Earned</div><div class="value" id="earnTotal" style="color:var(--green)">$—</div></div>
+      <div class="stat-card"><div class="label">This Month</div><div class="value" id="earnMonth" style="color:var(--accent)">$—</div></div>
+    </div>
+  </div>
+
+  <!-- ── Admin Orders ──────────────────────── -->
+  <div id="page-adminOrders" class="page">
+    <div class="topbar">
+      <div class="page-title">All Orders</div>
+      <div style="display:flex;gap:.5rem;align-items:center;">
+        <select id="adminStatusFilter" onchange="loadAdminOrders()" style="background:var(--card);border:1px solid var(--border);color:var(--text);padding:.4rem .75rem;border-radius:8px;font-size:.85rem;">
+          <option value="">All statuses</option>
+          <option value="PENDING">PENDING</option>
+          <option value="CONFIRMED">CONFIRMED</option>
+          <option value="COMPLETED">COMPLETED</option>
+          <option value="CANCELLED">CANCELLED</option>
+        </select>
+        <button class="btn-sm btn-primary" onclick="loadAdminOrders()">↺ Refresh</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table><thead><tr><th>ID</th><th>Client UUID</th><th>Property</th><th>Service</th><th>Date</th><th>Freq</th><th>Session</th><th>Total</th><th>Cleaner</th><th>Status</th></tr></thead>
+      <tbody id="adminOrdersTable"><tr><td colspan="10" class="loading">Loading...</td></tr></tbody></table>
+    </div>
+  </div>
+
+  <!-- ── Admin Users ───────────────────────── -->
+  <div id="page-adminUsers" class="page">
+    <div class="topbar"><div class="page-title">Users</div></div>
+    <div class="table-wrap">
+      <table><thead><tr><th>Username</th><th>Email</th><th>Roles</th><th>Active</th></tr></thead>
+      <tbody id="adminUsersTable"><tr><td colspan="4" class="loading">Loading...</td></tr></tbody></table>
+    </div>
+  </div>
+</main>
+
+<script th:inline="javascript">
+/* ── Service URLs (injected from Spring) ─────────────────── */
+// All API calls go through server-side proxy (/proxy/*)
+// Same origin → no CORS, works in all environments
+const IAC_URL      = '/proxy/iac';
+const PROPERTY_URL = '/proxy/property';
+const PRICING_URL  = '/proxy/pricing';
+const ORDER_URL    = '/proxy/order';
+
+/* ── Auth ────────────────────────────────────────────────── */
+const TOKEN    = localStorage.getItem('accessToken') || '';
+const ROLES    = JSON.parse(localStorage.getItem('roles') || '[]');
+const USERNAME = localStorage.getItem('username') || 'User';
+
+if (!TOKEN) window.location.href = '/login';
+
+const IS_CLIENT  = ROLES.some(r => r === 'ROLE_CLIENT');
+const IS_CLEANER = ROLES.some(r => r === 'ROLE_CLEANER');
+const IS_ADMIN   = ROLES.some(r => r === 'ROLE_ADMIN' || r === 'ROLE_SUPER_ADMIN');
+
+/* ── Auth Headers ────────────────────────────────────────── */
+const headers = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN };
+
+/* ── Init ────────────────────────────────────────────────── */
+function init() {
+  // Show username & role
+  document.getElementById('sidebarUsername').textContent = USERNAME;
+  const roleText = IS_ADMIN ? 'Admin' : IS_CLEANER ? 'Cleaner' : 'Client';
+  const roleClass = IS_ADMIN ? 'ADMIN' : IS_CLEANER ? 'CLEANER' : 'CLIENT';
+  const roleEl = document.getElementById('sidebarRole');
+  roleEl.textContent = roleText;
+  roleEl.className = 'role-pill pill-' + (IS_ADMIN ? 'ADMIN' : roleClass);
+
+  document.getElementById('statRole').textContent  = roleText;
+  document.getElementById('statUser').textContent  = USERNAME;
+
+  // Show role-specific nav items
+  if (IS_CLIENT)  document.querySelectorAll('.client-only').forEach(el => el.classList.remove('hidden'));
+  if (IS_CLEANER) document.querySelectorAll('.cleaner-only').forEach(el => el.classList.remove('hidden'));
+  if (IS_ADMIN)   document.querySelectorAll('.admin-only').forEach(el => el.classList.remove('hidden'));
+}
+
+/* ── Navigation ──────────────────────────────────────────── */
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const page = document.getElementById('page-' + id);
+  if (page) page.classList.add('active');
+  event?.currentTarget?.classList.add('active');
+
+  // Lazy load
+  const loaders = {
+    catalog:     loadCatalog,
+    properties:  loadProperties,
+    myOrders:    loadMyOrders,
+    newOrder:    loadOrderForm,
+    schedule:    loadSchedule,
+    earnings:    loadEarnings,
+    adminOrders: loadAdminOrders,
+    adminUsers:  loadAdminUsers,
+  };
+  if (loaders[id]) loaders[id]();
+}
+
+/* ── Catalog ─────────────────────────────────────────────── */
+async function loadCatalog() {
+  try {
+    const [svcResp, addResp] = await Promise.all([
+      fetch(PRICING_URL + '/api/v1/catalog/services'),
+      fetch(PRICING_URL + '/api/v1/catalog/addons')
+    ]);
+    const svcJson = await svcResp.json();
+    const addJson = await addResp.json();
+
+    document.getElementById('catalogServices').innerHTML = (svcJson.data || []).map(s => `
+      <div class="catalog-item">
+        <h4>${s.name}</h4>
+        <div class="price">$${s.ratePerSqm}/sqm</div>
+        <p>${s.description || ''}</p>
+        <small style="color:var(--muted);font-size:.72rem;margin-top:.5rem;display:block;">Code: ${s.code}</small>
+      </div>`).join('') || '<p class="loading">No services found</p>';
+
+    document.getElementById('catalogAddons').innerHTML = (addJson.data || []).map(a => `
+      <div class="catalog-item">
+        <h4>${a.name}</h4>
+        <div class="price">$${a.price}</div>
+        <p>${a.description || ''}</p>
+        <small style="color:var(--muted);font-size:.72rem;margin-top:.5rem;display:block;">${a.durationMinutes} min</small>
+      </div>`).join('') || '<p class="loading">No addons found</p>';
+  } catch(e) {
+    document.getElementById('catalogServices').innerHTML = '<p class="loading">Failed to load catalog: ' + e.message + '</p>';
+  }
+}
+
+/* ── Properties ──────────────────────────────────────────── */
+let propAddVisible = false;
+function toggleAddProp() {
+  propAddVisible = !propAddVisible;
+  document.getElementById('addPropForm').classList.toggle('hidden', !propAddVisible);
+}
+
+async function loadProperties() {
+  try {
+    const resp = await fetch(PROPERTY_URL + '/api/v1/properties', { headers });
+    const json = await resp.json();
+    const props = json.data?.content || json.data || [];
+    const tbody = document.getElementById('propsTable');
+    tbody.innerHTML = props.length ? props.map(p =>
+      `<tr><td>${p.name||'—'}</td><td>${p.type}</td><td>${p.areaSqm} sqm</td><td>${p.bathroomsCount}</td><td>${p.address||'—'}</td></tr>`
+    ).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:2rem">No properties yet</td></tr>';
+  } catch(e) {
+    document.getElementById('propsTable').innerHTML = `<tr><td colspan="5">Error: ${e.message}</td></tr>`;
+  }
+}
+
+async function saveProperty() {
+  showAlert('propAlert', '<span class="spin"></span>Saving...', 'ok');
+  try {
+    const resp = await fetch(PROPERTY_URL + '/api/v1/properties', {
+      method: 'POST', headers,
+      body: JSON.stringify({
+        name: document.getElementById('pName').value,
+        type: document.getElementById('pType').value,
+        areaSqm: parseFloat(document.getElementById('pArea').value),
+        bathroomsCount: parseInt(document.getElementById('pBath').value),
+        address: document.getElementById('pAddr').value,
+        notes: document.getElementById('pNotes').value
+      })
+    });
+    const json = await resp.json();
+    if (json.success) {
+      showAlert('propAlert', '✓ Property saved!', 'ok');
+      toggleAddProp();
+      loadProperties();
+    } else showAlert('propAlert', '✗ ' + (json.error || json.message), 'err');
+  } catch(e) { showAlert('propAlert', '✗ ' + e.message, 'err'); }
+}
+
+/* ── Book Order ──────────────────────────────────────────── */
+let allProps = [], allServices = [], allAddons = [];
+
+async function loadOrderForm() {
+  try {
+    const [pResp, sResp, aResp] = await Promise.all([
+      fetch(PROPERTY_URL + '/api/v1/properties', { headers }),
+      fetch(PRICING_URL + '/api/v1/catalog/services'),
+      fetch(PRICING_URL + '/api/v1/catalog/addons')
+    ]);
+    allProps    = ((await pResp.json()).data?.content || (await (await fetch(PROPERTY_URL + '/api/v1/properties', { headers })).json()).data || []);
+    allServices = (await sResp.json()).data || [];
+    allAddons   = (await aResp.json()).data || [];
+  } catch(e) {
+    // retry on error
+  }
+
+  // populate
+  const pSel = document.getElementById('oProperty');
+  pSel.innerHTML = allProps.map(p => `<option value="${p.id}">${p.name} (${p.type}, ${p.areaSqm}sqm)</option>`).join('') || '<option>No properties — add one first</option>';
+
+  const sSel = document.getElementById('oService');
+  sSel.innerHTML = allServices.map(s => `<option value="${s.code}">${s.name} ($${s.ratePerSqm}/sqm)</option>`).join('');
+
+  const addonDiv = document.getElementById('addonCheckboxes');
+  addonDiv.innerHTML = allAddons.map(a => `
+    <label style="display:flex;align-items:center;gap:.5rem;background:var(--surface);padding:.5rem .75rem;border-radius:8px;cursor:pointer;border:1px solid var(--border);">
+      <input type="checkbox" value="${a.code}" style="accent-color:var(--accent)"/>
+      ${a.name} — $${a.price}
+    </label>`).join('');
+
+  // Set default date to tomorrow
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1); tomorrow.setHours(10,0,0,0);
+  document.getElementById('oDate').value = tomorrow.toISOString().slice(0,16);
+}
+
+async function calcPrice() {
+  const propId = document.getElementById('oProperty').value;
+  const prop = allProps.find(p => p.id === propId);
+  if (!prop) return showAlert('orderAlert', '✗ Select a property first', 'err');
+  const addonCodes = [...document.querySelectorAll('#addonCheckboxes input:checked')].map(c => c.value);
+
+  try {
+    const resp = await fetch(PRICING_URL + '/api/v1/pricing/calculate', {
+      method: 'POST', headers,
+      body: JSON.stringify({
+        areaSqm: prop.areaSqm,
+        bathroomsCount: prop.bathroomsCount,
+        serviceTypeCode: document.getElementById('oService').value,
+        addonCodes,
+        frequency: document.getElementById('oFreq').value
+      })
+    });
+    const json = await resp.json();
+    if (json.success) {
+      const d = json.data;
+      document.getElementById('pricePreview').innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem;">
+          <div><div style="font-size:.75rem;color:var(--muted)">Base Price</div><div style="font-size:1.2rem;font-weight:700">$${d.basePrice}</div></div>
+          <div><div style="font-size:.75rem;color:var(--muted)">Discount</div><div style="font-size:1.2rem;font-weight:700;color:var(--green)">−${d.discountPercent}%</div></div>
+          <div><div style="font-size:.75rem;color:var(--muted)">Addons</div><div style="font-size:1.2rem;font-weight:700">$${d.addonsPrice}</div></div>
+          <div><div style="font-size:.75rem;color:var(--muted)">Total</div><div style="font-size:1.4rem;font-weight:700;color:var(--accent)">$${d.totalPrice}</div></div>
+        </div>
+        <div style="margin-top:.5rem;font-size:.8rem;color:var(--muted)">Estimated duration: ${d.durationHours}h</div>`;
+      document.getElementById('pricePreview').classList.remove('hidden');
+    }
+  } catch(e) { showAlert('orderAlert', '✗ Pricing unavailable: ' + e.message, 'err'); }
+}
+
+function seriesOccurrences(freq) {
+  const map = { ONE_TIME:1, WEEKLY:8, BIWEEKLY:6, MONTHLY:3 };
+  return map[freq] || 1;
+}
+function seriesIntervalDays(freq) {
+  const map = { WEEKLY:7, BIWEEKLY:14, MONTHLY:30 };
+  return map[freq] || 0;
+}
+
+function updateDatePreview() {
+  const freq = document.getElementById('oFreq').value;
+  const dateVal = document.getElementById('oDate').value;
+  const box = document.getElementById('datePreviewBox');
+  const datesDiv = document.getElementById('datePreviewDates');
+  if (!dateVal || freq === 'ONE_TIME') { box.classList.add('hidden'); return; }
+  const count = seriesOccurrences(freq);
+  const interval = seriesIntervalDays(freq);
+  const base = new Date(dateVal);
+  const chips = [];
+  for (let i = 0; i < count; i++) {
+    const d = new Date(base.getTime() + i * interval * 86400000);
+    chips.push(`<span class="date-chip">${i===0?'1st: ':''}${d.toLocaleDateString('en-CA',{month:'short',day:'numeric',year:'numeric'})}</span>`);
+  }
+  datesDiv.innerHTML = chips.join('');
+  box.classList.remove('hidden');
+}
+
+async function createOrder() {
+  const addonCodes = [...document.querySelectorAll('#addonCheckboxes input:checked')].map(c => c.value);
+  const propId = document.getElementById('oProperty').value;
+  const dateVal = document.getElementById('oDate').value;
+  const freq = document.getElementById('oFreq').value;
+  if (!propId || !dateVal) return showAlert('orderAlert', '✗ Fill all required fields', 'err');
+
+  const count = seriesOccurrences(freq);
+  showAlert('orderAlert', `<span class="spin"></span>Creating ${count > 1 ? count + ' orders' : 'order'}...`, 'ok');
+  try {
+    const resp = await fetch(ORDER_URL + '/api/v1/orders', {
+      method: 'POST', headers,
+      body: JSON.stringify({
+        propertyId: propId,
+        serviceTypeCode: document.getElementById('oService').value,
+        addonCodes,
+        frequency: freq,
+        scheduledDate: new Date(dateVal).toISOString().replace('Z',''),
+        notes: document.getElementById('oNotes').value
+      })
+    });
+    const json = await resp.json();
+    if (json.success) {
+      const series = Array.isArray(json.data) ? json.data : [json.data];
+      const total = series.reduce((s,o) => s + parseFloat(o.totalPrice||0), 0).toFixed(2);
+      const msg = series.length > 1
+        ? `✓ ${series.length} orders created (${freq}) — total $${total} across all sessions. Go to My Orders to pay.`
+        : `✓ Order created — $${series[0]?.totalPrice}. Go to My Orders to pay.`;
+      showAlert('orderAlert', msg, 'ok');
+      setTimeout(() => showPage('myOrders'), 2000);
+    } else showAlert('orderAlert', '✗ ' + (json.error || json.message), 'err');
+
+  } catch(e) { showAlert('orderAlert', '✗ ' + e.message, 'err'); }
+}
+
+/* ── My Orders ───────────────────────────────────────────── */
+async function loadMyOrders() {
+  try {
+    const resp = await fetch(ORDER_URL + '/api/v1/orders?size=100', { headers });
+    const json = await resp.json();
+    const orders = json.data?.content || [];
+    const tbody = document.getElementById('ordersTable');
+
+    if (!orders.length) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:2rem">No orders yet</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = orders.map(o => {
+      const d = o.scheduledDate ? new Date(o.scheduledDate) : null;
+      const dateStr = d ? d.toLocaleDateString('en-CA', {month:'short',day:'numeric',year:'numeric'}) + ' ' +
+        d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '—';
+      const isRecurring = o.seriesSize > 1;
+      const sessionLabel = isRecurring ? `${o.seriesIndex+1}/${o.seriesSize}` : '—';
+      const freqLabel = o.frequency === 'ONE_TIME' ? '—' : o.frequency;
+      return `<tr>
+        <td style="font-family:monospace;font-size:.78rem;white-space:nowrap">${o.id.slice(0,8)}…</td>
+        <td>${o.propertyName||'—'}</td>
+        <td>${o.serviceTypeName||o.serviceTypeCode||'—'}</td>
+        <td style="white-space:nowrap">${dateStr}</td>
+        <td><span style="font-size:.78rem;color:var(--muted)">${freqLabel}</span></td>
+        <td style="color:var(--accent);font-weight:600;white-space:nowrap">$${o.totalPrice}
+          ${isRecurring ? `<span class="series-badge">📅 ${sessionLabel}</span>` : ''}
+        </td>
+        <td><span class="badge badge-${o.status}">${o.status}</span></td>
+        <td style="display:flex;gap:.4rem;flex-wrap:wrap">
+          ${o.status === 'PENDING' ?
+            `<button class="btn-sm btn-success" onclick="payOrder('${o.id}')">💳 Pay</button>` : ''}
+          ${o.status !== 'CANCELLED' && o.status !== 'COMPLETED' ?
+            `<button class="btn-sm btn-danger" onclick="cancelOrder('${o.id}')">Cancel</button>` : ''}
+        </td>
+      </tr>`;
+    }).join('');
+  } catch(e) {
+    document.getElementById('ordersTable').innerHTML = `<tr><td colspan="8">Error: ${e.message}</td></tr>`;
+  }
+}
+
+async function cancelOrder(id) {
+  if (!confirm('Cancel this order?')) return;
+  try {
+    await fetch(ORDER_URL + '/api/v1/orders/' + id, { method: 'DELETE', headers });
+    loadMyOrders();
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
+async function payOrder(id) {
+  if (!confirm('Confirm payment for this order? A cleaner will be assigned via Round-Robin.')) return;
+  try {
+    const resp = await fetch(ORDER_URL + '/api/v1/orders/' + id + '/pay', { method: 'POST', headers });
+    const json = await resp.json();
+    if (json.success) {
+      const cleanerId = json.data?.cleanerId || json.data?.cleaner?.id || 'assigned';
+      showAlert('ordersAlert', '✓ Payment confirmed! Status: CONFIRMED · Cleaner assigned via round-robin.', 'ok');
+      loadMyOrders();
+    } else {
+      showAlert('ordersAlert', '✗ ' + (json.error || json.message), 'err');
+    }
+  } catch(e) { showAlert('ordersAlert', '✗ ' + e.message, 'err'); }
+}
+
+/* ── Cleaner Schedule ────────────────────────────────────── */
+async function loadSchedule() {
+  try {
+    const resp = await fetch(ORDER_URL + '/api/v1/cleaner/schedule', { headers });
+    const json = await resp.json();
+    const orders = json.data || [];
+    const container = document.getElementById('scheduleList');
+    if (!orders.length) { container.innerHTML = '<p class="loading">No upcoming bookings 🎉</p>'; return; }
+
+    // Group by series (parentOrderId or id)
+    const groups = {};
+    orders.forEach(o => {
+      const key = o.parentOrderId || o.id;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(o);
+    });
+
+    const html = [];
+    Object.values(groups).forEach(group => {
+      group.sort((a,b) => new Date(a.scheduledDate) - new Date(b.scheduledDate));
+      const first = group[0];
+      const isRecurring = group.length > 1 || first.seriesSize > 1;
+
+      group.forEach((o, idx) => {
+        const d = o.scheduledDate ? new Date(o.scheduledDate) : null;
+        const isPast = d && d < new Date();
+        const sessionLabel = isRecurring ? ` · Session ${o.seriesIndex+1}/${o.seriesSize}` : '';
+        html.push(`
+        <div class="schedule-item ${idx > 0 ? 'series-sibling' : ''}">
+          ${d ? `<div class="schedule-date ${isPast ? 'date-future' : ''}">
+            <div class="day">${d.getDate()}</div>
+            <div class="month">${d.toLocaleString('en',{month:'short'})}</div>
+          </div>` : ''}
+          <div class="schedule-info">
+            <h4>${o.propertyName||'Property'} — ${o.serviceTypeName||o.serviceTypeCode||'Cleaning'}
+              ${isRecurring && idx===0 ? `<span class="series-badge">📅 ${o.frequency} · ${group.length} sessions</span>` : ''}
+            </h4>
+            <p>${d ? d.toLocaleDateString('en-CA',{weekday:'short',month:'short',day:'numeric'}) + ' ' +
+              d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : ''}${sessionLabel} · $${o.totalPrice}</p>
+          </div>
+          <div class="schedule-actions">
+            ${o.status === 'CONFIRMED' || o.status === 'IN_PROGRESS' ?
+              `<button class="btn-sm btn-success" onclick="completeOrder('${o.id}')">✓ Done</button>
+               <button class="btn-sm btn-danger" onclick="requestReplacement('${o.id}')">↩ Replace</button>` : 
+              `<span class="badge badge-${o.status}">${o.status}</span>`}
+          </div>
+        </div>`);
+      });
+    });
+    container.innerHTML = html.join('');
+  } catch(e) { document.getElementById('scheduleList').innerHTML = '<p class="loading">Error: ' + e.message + '</p>'; }
+}
+
+async function completeOrder(id) {
+  if (!confirm('Mark order as completed?')) return;
+  try {
+    const resp = await fetch(ORDER_URL + '/api/v1/cleaner/orders/' + id + '/complete', { method:'POST', headers });
+    const json = await resp.json();
+    showAlert('scheduleAlert', json.success ? '✓ Order completed! Earnings recorded.' : '✗ ' + json.error, json.success ? 'ok':'err');
+    if (json.success) loadSchedule();
+  } catch(e) { showAlert('scheduleAlert', '✗ ' + e.message, 'err'); }
+}
+
+async function requestReplacement(id) {
+  if (!confirm('Request replacement for this order?')) return;
+  try {
+    const resp = await fetch(ORDER_URL + '/api/v1/cleaner/orders/' + id + '/request-replacement', { method:'POST', headers});
+    const json = await resp.json();
+    showAlert('scheduleAlert', json.success ? '✓ Replacement requested' : '✗ ' + json.error, json.success ? 'ok':'err');
+    if (json.success) loadSchedule();
+  } catch(e) { showAlert('scheduleAlert', '✗ ' + e.message, 'err'); }
+}
+
+/* ── Earnings ────────────────────────────────────────────── */
+async function loadEarnings() {
+  try {
+    const resp = await fetch(ORDER_URL + '/api/v1/cleaner/earnings', { headers });
+    const json = await resp.json();
+    document.getElementById('earnTotal').textContent = '$' + (json.data || 0);
+
+    const now = new Date();
+    const mResp = await fetch(ORDER_URL + '/api/v1/cleaner/earnings/' + now.getFullYear() + '/' + (now.getMonth()+1), { headers });
+    const mJson = await mResp.json();
+    document.getElementById('earnMonth').textContent = '$' + (mJson.data || 0);
+  } catch(e) {}
+}
+
+/* ── Admin ───────────────────────────────────────────────── */
+async function loadAdminUsers() {
+  try {
+    const resp = await fetch(IAC_URL + '/api/v1/users', { headers });
+    const json = await resp.json();
+    const users = json.data?.content || json.data || [];
+    document.getElementById('adminUsersTable').innerHTML = users.map(u => `
+      <tr>
+        <td>${u.username}</td>
+        <td>${u.email||'—'}</td>
+        <td>${(u.roles||[]).join(', ')}</td>
+        <td>${u.enabled !== false ? '✓' : '✗'}</td>
+      </tr>`).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:2rem">No users</td></tr>';
+  } catch(e) {
+    document.getElementById('adminUsersTable').innerHTML = `<tr><td colspan="4">Error: ${e.message}</td></tr>`;
+  }
+}
+
+async function loadAdminOrders() {
+  const status = document.getElementById('adminStatusFilter')?.value || '';
+  const url = ORDER_URL + '/api/v1/admin/orders?size=100' + (status ? '&status=' + status : '');
+  try {
+    const resp = await fetch(url, { headers });
+    const json = await resp.json();
+    if (!json.success) {
+      document.getElementById('adminOrdersTable').innerHTML =
+        `<tr><td colspan="10" style="text-align:center;color:var(--accent2);padding:2rem">✗ ${json.error || json.message}</td></tr>`;
+      return;
+    }
+    const orders = json.data?.content || [];
+    const tbody = document.getElementById('adminOrdersTable');
+    tbody.innerHTML = orders.length ? orders.map(o => {
+      const d = o.scheduledDate ? new Date(o.scheduledDate) : null;
+      const dateStr = d ? d.toLocaleDateString('en-CA',{month:'short',day:'numeric',year:'numeric'})+' '+
+        d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '—';
+      const sessionBadge = o.seriesSize > 1 ? `<span class="series-badge">📅 ${o.seriesIndex+1}/${o.seriesSize}</span>` : '';
+      return `<tr>
+        <td style="font-family:monospace;font-size:.75rem;white-space:nowrap">${o.id.slice(0,8)}…</td>
+        <td style="font-family:monospace;font-size:.75rem;white-space:nowrap">${o.clientId?.toString().slice(0,8)||'—'}…</td>
+        <td>${o.propertyName||'—'}</td>
+        <td style="white-space:nowrap">${o.serviceTypeName||o.serviceTypeCode||'—'}</td>
+        <td style="white-space:nowrap;font-size:.82rem">${dateStr}</td>
+        <td style="font-size:.78rem;color:var(--muted)">${o.frequency==='ONE_TIME'?'—':o.frequency}</td>
+        <td>${sessionBadge || '—'}</td>
+        <td style="color:var(--accent);font-weight:600">$${o.totalPrice}</td>
+        <td style="font-family:monospace;font-size:.75rem">${o.cleanerId ? o.cleanerId.slice(0,8)+'…' : '<span style="color:var(--muted)">—</span>'}</td>
+        <td><span class="badge badge-${o.status}">${o.status}</span></td>
+      </tr>`;
+    }).join('') : `<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:2rem">No orders${status?' with status '+status:''}</td></tr>`;
+  } catch(e) {
+    document.getElementById('adminOrdersTable').innerHTML =
+      `<tr><td colspan="10">Error: ${e.message}</td></tr>`;
+  }
+}
+
+/* ── Utils ───────────────────────────────────────────────── */
+function showAlert(containerId, msg, type) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  el.className = 'alert alert-' + type;
+  el.innerHTML = msg;
+  el.style.display = 'block';
+}
+
+function doLogout() {
+  localStorage.clear();
+  window.location.href = '/login';
+}
+
+/* ── Load properties again for order form (separate call) ── */
+const _origLoadOrderForm = loadOrderForm;
+async function loadOrderForm() {
+  try {
+    const [pData, sData, aData] = await Promise.all([
+      fetch(PROPERTY_URL + '/api/v1/properties', { headers }).then(r => r.json()),
+      fetch(PRICING_URL + '/api/v1/catalog/services').then(r => r.json()),
+      fetch(PRICING_URL + '/api/v1/catalog/addons').then(r => r.json()),
+    ]);
+    allProps    = pData.data?.content || pData.data || [];
+    allServices = sData.data || [];
+    allAddons   = aData.data || [];
+
+    const pSel = document.getElementById('oProperty');
+    pSel.innerHTML = allProps.length
+      ? allProps.map(p => `<option value="${p.id}">${p.name||p.type} (${p.areaSqm}sqm, ${p.bathroomsCount} bath)</option>`).join('')
+      : '<option value="">No properties — add one first</option>';
+
+    document.getElementById('oService').innerHTML = allServices.map(s =>
+      `<option value="${s.code}">${s.name} ($${s.ratePerSqm}/sqm)</option>`).join('');
+
+    document.getElementById('addonCheckboxes').innerHTML = allAddons.map(a => `
+      <label style="display:flex;align-items:center;gap:.5rem;background:var(--surface);padding:.5rem .75rem;border-radius:8px;cursor:pointer;border:1px solid var(--border);">
+        <input type="checkbox" value="${a.code}" style="accent-color:var(--accent)"/>
+        ${a.name} — $${a.price}
+      </label>`).join('');
+
+    const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1); tomorrow.setHours(10,0,0,0);
+    document.getElementById('oDate').value = tomorrow.toISOString().slice(0,16);
+  } catch(e) { showAlert('orderAlert', '✗ Failed to load form: ' + e.message, 'err'); }
+}
+
+init();
+</script>
+</body>
+</html>

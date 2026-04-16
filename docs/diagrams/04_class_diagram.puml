@@ -1,0 +1,170 @@
+@startuml class_diagram
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam ClassBorderColor #333333
+skinparam ClassBackgroundColor #FFFFFF
+skinparam ArrowColor #333333
+skinparam NoteBackgroundColor #FFFFFF
+skinparam NoteBorderColor #333333
+
+title Cleaning Platform — Domain Entity Model (with Kafka Outbox Pattern)
+
+package "IAC Service" #EEEEEE {
+  class UserEntity {
+    + id : UUID <<PK>>
+    + username : String
+    + email : String
+    - passwordHash : String
+    + firstName : String
+    + lastName : String
+    + enabled : boolean
+    + createdAt : LocalDateTime
+    + updatedAt : LocalDateTime
+    --
+    + addRole(role: RoleEntity)
+    + removeRole(role: RoleEntity)
+  }
+
+  class RoleEntity {
+    + id : UUID <<PK>>
+    + name : String <<unique>>
+  }
+
+  class RefreshTokenEntity {
+    + id : UUID <<PK>>
+    + token : String <<unique>>
+    + expiresAt : LocalDateTime
+    + createdAt : LocalDateTime
+  }
+
+  UserEntity "1" *-- "many" RefreshTokenEntity : has >
+  UserEntity "many" <--> "many" RoleEntity : user_roles
+
+  class OutboxEventEntity {
+    + id : UUID <<PK>>
+    + aggregateType : String
+    + aggregateId : String
+    + eventType : String
+    + payload : Text (JSON)
+    + status : String <<PENDING|PROCESSED|FAILED>>
+    + createdAt : LocalDateTime
+    + processedAt : LocalDateTime
+  }
+}
+
+package "Property Service" #EEEEEE {
+  class PropertyEntity {
+    + id : UUID <<PK>>
+    + clientId : UUID
+    + name : String
+    + type : String
+    + areaSqm : BigDecimal
+    + bathroomsCount : int
+    + address : String
+    + notes : String
+    + active : boolean
+    + createdAt : LocalDateTime
+    + updatedAt : LocalDateTime
+  }
+}
+
+package "Pricing Service" #EEEEEE {
+  class ServiceTypeEntity {
+    + id : UUID <<PK>>
+    + code : String <<unique>>
+    + name : String
+    + ratePerSqm : BigDecimal
+    + ratePerBathroom : BigDecimal
+    + active : boolean
+  }
+
+  class ServiceAddonEntity {
+    + id : UUID <<PK>>
+    + code : String <<unique>>
+    + name : String
+    + price : BigDecimal
+    + active : boolean
+  }
+}
+
+package "Order / Booking Service" #EEEEEE {
+  class OrderEntity {
+    + id : UUID <<PK>>
+    + clientId : UUID
+    + frequency : OrderFrequency
+    + scheduledDate : LocalDateTime
+    + durationHours : BigDecimal
+    + basePrice : BigDecimal
+    + discountPercent : BigDecimal
+    + addonsPrice : BigDecimal
+    + totalPrice : BigDecimal
+    + status : OrderStatus
+    + cancellationReason : String
+    + clientNotes : String
+    + createdAt : LocalDateTime
+    + updatedAt : LocalDateTime
+  }
+
+  class CleanerProfileEntity {
+    + id : UUID <<PK>>
+    + userId : UUID
+    + isAvailable : boolean
+    + lastAssignedAt : LocalDateTime
+    + createdAt : LocalDateTime
+  }
+
+  class EarningEntity {
+    + id : UUID <<PK>>
+    + amount : BigDecimal
+    + earnedAt : LocalDateTime
+    + createdAt : LocalDateTime
+  }
+
+  enum OrderStatus {
+    PENDING
+    CONFIRMED
+    COMPLETED
+    CANCELLED
+  }
+
+  enum OrderFrequency {
+    ONE_TIME
+    WEEKLY
+    BI_WEEKLY
+    MONTHLY
+  }
+
+  OrderEntity "many" --> "1" PropertyEntity : for property >
+  OrderEntity "many" --> "1" ServiceTypeEntity : uses service type >
+  OrderEntity "many" --> "many" ServiceAddonEntity : order_addons
+  OrderEntity "many" --> "0..1" CleanerProfileEntity : assigned to >
+  OrderEntity ..> OrderStatus
+  OrderEntity ..> OrderFrequency
+  EarningEntity "many" --> "1" CleanerProfileEntity : earned by >
+  EarningEntity "1" ..> "1" OrderEntity : for order >
+
+  class OutboxEventEntity {
+    + id : UUID <<PK>>
+    + aggregateType : String
+    + aggregateId : String
+    + eventType : String
+    + payload : Text (JSON)
+    + status : String <<PENDING|PROCESSED|FAILED>>
+    + createdAt : LocalDateTime
+    + processedAt : LocalDateTime
+  }
+}
+
+note bottom of PropertyEntity
+  clientId = UUID.nameUUIDFromBytes(username.getBytes())
+  Ownership enforced per request.
+end note
+
+note bottom of CleanerProfileEntity
+  Auto-created on first cleaner API call.
+  Round-Robin: ordered by lastAssignedAt ASC.
+end note
+
+@enduml

@@ -1,0 +1,300 @@
+{
+  "info": {
+    "name": "IAC Service — Full API Collection",
+    "_postman_id": "iac-service-v1",
+    "description": "Complete Postman collection for the Identity & Access Control (IAC) Service.\n\n## How to use\n1. Import this collection into Postman\n2. Set the `baseUrl` variable to `http://localhost:18080`\n3. Run **Login** or **Register** first — tokens are auto-saved\n4. All authenticated requests use `{{accessToken}}` automatically",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl",      "value": "http://localhost:18080", "type": "string" },
+    { "key": "accessToken",  "value": "",                       "type": "string" },
+    { "key": "refreshToken", "value": "",                       "type": "string" }
+  ],
+  "item": [
+
+    {
+      "name": "🔐 Authentication",
+      "item": [
+
+        {
+          "name": "Register New User",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/register", "host": ["{{baseUrl}}"], "path": ["api","v1","auth","register"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"john_doe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"Secret@123\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data) {",
+                  "  pm.collectionVariables.set('accessToken',  json.data.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', json.data.refreshToken);",
+                  "  pm.test('Register OK', () => pm.response.to.have.status(201));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "Login as Super Admin",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api","v1","auth","login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"superadmin\",\n  \"password\": \"SuperAdmin@123!\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data) {",
+                  "  pm.collectionVariables.set('accessToken',  json.data.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', json.data.refreshToken);",
+                  "  pm.test('Login OK', () => pm.response.to.have.status(200));",
+                  "  pm.test('Has accessToken', () => pm.expect(json.data.accessToken).to.not.be.empty);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "Login as Regular User",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api","v1","auth","login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"john_doe\",\n  \"password\": \"Secret@123\"\n}"
+            }
+          }
+        },
+
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/refresh?refreshToken={{refreshToken}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api","v1","auth","refresh"],
+              "query": [{ "key": "refreshToken", "value": "{{refreshToken}}" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data) {",
+                  "  pm.collectionVariables.set('accessToken',  json.data.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', json.data.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/logout", "host": ["{{baseUrl}}"], "path": ["api","v1","auth","logout"] }
+          }
+        },
+
+        {
+          "name": "Register — Validation Error (short password)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/register", "host": ["{{baseUrl}}"], "path": ["api","v1","auth","register"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"x\",\n  \"email\": \"bad-email\",\n  \"password\": \"123\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('Returns 400', () => pm.response.to.have.status(400));"]
+              }
+            }
+          ]
+        }
+
+      ]
+    },
+
+    {
+      "name": "👤 Users",
+      "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+      "item": [
+
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/v1/users/me", "host": ["{{baseUrl}}"], "path": ["api","v1","users","me"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Has username', () => pm.expect(pm.response.json().data.username).to.not.be.empty);"
+                ]
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "List All Users (Admin)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users?page=0&size=20&sort=createdAt&direction=DESC",
+              "host": ["{{baseUrl}}"],
+              "path": ["api","v1","users"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" },
+                { "key": "sort", "value": "createdAt" },
+                { "key": "direction", "value": "DESC" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "Get User by ID (Admin)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/v1/users/{{userId}}", "host": ["{{baseUrl}}"], "path": ["api","v1","users","{{userId}}"] }
+          }
+        },
+
+        {
+          "name": "Delete User (Super Admin)",
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/api/v1/users/{{userId}}", "host": ["{{baseUrl}}"], "path": ["api","v1","users","{{userId}}"] }
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "🛡️ Admin — Role Management",
+      "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+      "item": [
+
+        {
+          "name": "List All Roles",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/v1/admin/roles", "host": ["{{baseUrl}}"], "path": ["api","v1","admin","roles"] }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Has 3 roles', () => pm.expect(pm.response.json().data.length).to.eql(3));"
+                ]
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "Assign ADMIN role to john_doe",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/admin/assign-role", "host": ["{{baseUrl}}"], "path": ["api","v1","admin","assign-role"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"john_doe\",\n  \"roleName\": \"ADMIN\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Has ROLE_ADMIN', () => {",
+                  "  var roles = pm.response.json().data.roles;",
+                  "  pm.expect(roles).to.include('ROLE_ADMIN');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "Revoke ADMIN role from john_doe",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/admin/revoke-role", "host": ["{{baseUrl}}"], "path": ["api","v1","admin","revoke-role"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"john_doe\",\n  \"roleName\": \"ADMIN\"\n}"
+            }
+          }
+        },
+
+        {
+          "name": "Try revoke SUPER_ADMIN (should fail)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/admin/revoke-role", "host": ["{{baseUrl}}"], "path": ["api","v1","admin","revoke-role"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"superadmin\",\n  \"roleName\": \"SUPER_ADMIN\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": ["pm.test('400 Bad Request', () => pm.response.to.have.status(400));"]
+              }
+            }
+          ]
+        }
+
+      ]
+    }
+
+  ]
+}

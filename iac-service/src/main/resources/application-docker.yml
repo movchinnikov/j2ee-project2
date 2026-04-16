@@ -1,0 +1,40 @@
+# Docker profile — overrides local application.yml
+# Uses the dedicated iac_db database on the shared PostgreSQL instance
+spring:
+  datasource:
+    url: jdbc:postgresql://postgres:5432/iac_db
+    username: ${SPRING_DATASOURCE_USERNAME:iac_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:iac_secret_pass}
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      retries: 3
+
+server:
+  port: 8080
+
+jwt:
+  secret: ${JWT_SECRET}
+  access-token-expiry-ms: ${JWT_ACCESS_TOKEN_EXPIRY_MS:900000}
+  refresh-token-expiry-ms: ${JWT_REFRESH_TOKEN_EXPIRY_MS:604800000}
+
+app:
+  superadmin:
+    username: ${APP_SUPERADMIN_USERNAME:admin}
+    email: ${APP_SUPERADMIN_EMAIL:admin@project.local}
+    password: ${APP_SUPERADMIN_PASSWORD:password}
+    first-name: ${APP_SUPERADMIN_FIRST_NAME:Super}
+    last-name: ${APP_SUPERADMIN_LAST_NAME:Admin}
+
+outbox:
+  relay:
+    interval-ms: 5000
+
+logging:
+  level:
+    com.project.iac: INFO
+    org.springframework.security: WARN

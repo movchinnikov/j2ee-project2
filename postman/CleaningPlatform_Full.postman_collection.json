@@ -1,0 +1,1601 @@
+{
+  "info": {
+    "name": "🧹 Cleaning Platform — Full API Collection",
+    "_postman_id": "cleaning-platform-full-v2",
+    "description": "## Cleaning Platform — Microservice API Collection\n\nCovers all **5 services** (IAC, Property, Pricing, Order, Booking).\n\n### How to use\n1. Import this collection into Postman\n2. Set collection variables (see `Variables` tab):\n   - `iacUrl`      → `http://localhost:18080`\n   - `propertyUrl` → `http://localhost:18081`\n   - `pricingUrl`  → `http://localhost:18082`\n   - `orderUrl`    → `http://localhost:18083`\n   - `bookingUrl`  → `http://localhost:18090`\n3. Run **Login as Super Admin** or **Register** — tokens are auto-saved\n4. Every authenticated folder inherits Bearer auth from `{{accessToken}}`\n\n### Token Flow\nEvery login/register/refresh request automatically runs a Post-Response Script that:\n- Saves `accessToken` → used by all authenticated requests\n- Saves `refreshToken` → used by the Refresh Token request",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "iacUrl",      "value": "http://localhost:18080", "type": "string", "description": "IAC Service — Auth, Users, Roles" },
+    { "key": "propertyUrl", "value": "http://localhost:18081", "type": "string", "description": "Property Service" },
+    { "key": "pricingUrl",  "value": "http://localhost:18082", "type": "string", "description": "Pricing Service" },
+    { "key": "orderUrl",    "value": "http://localhost:18083", "type": "string", "description": "Order Service" },
+    { "key": "bookingUrl",  "value": "http://localhost:18090", "type": "string", "description": "Booking Service (UI proxy)" },
+    { "key": "accessToken",  "value": "", "type": "string", "description": "Auto-set after login/register" },
+    { "key": "refreshToken", "value": "", "type": "string", "description": "Auto-set after login/register" },
+    { "key": "userId",       "value": "", "type": "string", "description": "Set manually for admin operations" },
+    { "key": "propertyId",   "value": "", "type": "string", "description": "Auto-set after property creation" },
+    { "key": "orderId",      "value": "", "type": "string", "description": "Auto-set after order creation" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+  },
+  "item": [
+
+    {
+      "name": "🔐 IAC Service — Authentication",
+      "description": "Register, login, token refresh, logout. Base URL: {{iacUrl}}",
+      "item": [
+
+        {
+          "name": "Register New User",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{iacUrl}}/api/v1/auth/register",
+              "host": ["{{iacUrl}}"],
+              "path": ["api","v1","auth","register"]
+            },
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"username\": \"john_doe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"Secret@123\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\"\n}"
+            },
+            "description": "Creates a new user account with the default USER role. On success, tokens are auto-saved to collection variables."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.accessToken) {",
+                  "  pm.collectionVariables.set('accessToken',  json.data.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', json.data.refreshToken);",
+                  "  pm.test('Register: status 201', () => pm.response.to.have.status(201));",
+                  "  pm.test('Has accessToken', () => pm.expect(json.data.accessToken).to.be.a('string').and.not.empty);",
+                  "  pm.test('Has refreshToken', () => pm.expect(json.data.refreshToken).to.be.a('string').and.not.empty);",
+                  "  console.log('✅ Tokens saved. accessToken length:', json.data.accessToken.length);",
+                  "} else {",
+                  "  pm.test('Registration failed', () => { throw new Error(JSON.stringify(json)); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "201 — User registered",
+              "status": "Created",
+              "code": 201,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"message\": \"User registered successfully\",\n  \"data\": {\n    \"accessToken\": \"eyJhbGciOiJIUzI1NiJ9...\",\n    \"refreshToken\": \"eyJhbGciOiJIUzI1NiJ9...\",\n    \"tokenType\": \"Bearer\",\n    \"expiresIn\": 900000\n  }\n}"
+            },
+            {
+              "name": "400 — Username already taken",
+              "status": "Bad Request",
+              "code": 400,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Registration failed\",\n  \"error\": \"Username already exists\"\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "Login as Super Admin",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{iacUrl}}/api/v1/auth/login",
+              "host": ["{{iacUrl}}"],
+              "path": ["api","v1","auth","login"]
+            },
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"password\"\n}"
+            },
+            "description": "Login with the default super admin account (seeded at startup). Tokens saved automatically."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "pm.test('Login: status 200', () => pm.response.to.have.status(200));",
+                  "if (json.data && json.data.accessToken) {",
+                  "  pm.collectionVariables.set('accessToken',  json.data.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', json.data.refreshToken);",
+                  "  pm.test('Has valid accessToken',  () => pm.expect(json.data.accessToken).to.match(/^eyJ/));",
+                  "  pm.test('Has valid refreshToken', () => pm.expect(json.data.refreshToken).to.match(/^eyJ/));",
+                  "  console.log('✅ Super Admin tokens saved successfully.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 — Login successful",
+              "status": "OK",
+              "code": 200,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Login successful\",\n  \"data\": {\n    \"accessToken\": \"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbiIsInJvbGVzIjpbIlJPTEVfU1VQRVJfQURNSU4iXX0...\",\n    \"refreshToken\": \"eyJhbGciOiJIUzI1NiJ9...\",\n    \"tokenType\": \"Bearer\",\n    \"expiresIn\": 900000\n  }\n}"
+            },
+            {
+              "name": "401 — Invalid credentials",
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Authentication failed\",\n  \"error\": \"Bad credentials\"\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "Login as Regular User (CLIENT role)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{iacUrl}}/api/v1/auth/login",
+              "host": ["{{iacUrl}}"],
+              "path": ["api","v1","auth","login"]
+            },
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"username\": \"john_doe\",\n  \"password\": \"Secret@123\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.accessToken) {",
+                  "  pm.collectionVariables.set('accessToken',  json.data.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', json.data.refreshToken);",
+                  "  console.log('✅ Client tokens saved.');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "Login as Cleaner",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{iacUrl}}/api/v1/auth/login",
+              "host": ["{{iacUrl}}"],
+              "path": ["api","v1","auth","login"]
+            },
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"username\": \"cleaner_bob\",\n  \"password\": \"Cleaner@123\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.accessToken) {",
+                  "  pm.collectionVariables.set('accessToken',  json.data.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', json.data.refreshToken);",
+                  "  console.log('✅ Cleaner tokens saved.');",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "Refresh Access Token",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{iacUrl}}/api/v1/auth/refresh?refreshToken={{refreshToken}}",
+              "host": ["{{iacUrl}}"],
+              "path": ["api","v1","auth","refresh"],
+              "query": [{ "key": "refreshToken", "value": "{{refreshToken}}", "description": "Current refresh token (auto-filled)" }]
+            },
+            "description": "Exchanges the current refresh token for a new access + refresh token pair (rotation)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Refresh: status 200', () => pm.response.to.have.status(200));",
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.accessToken) {",
+                  "  pm.collectionVariables.set('accessToken',  json.data.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', json.data.refreshToken);",
+                  "  pm.test('New accessToken issued',  () => pm.expect(json.data.accessToken).to.match(/^eyJ/));",
+                  "  console.log('✅ Tokens rotated successfully.');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 — Tokens refreshed",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"message\": \"Token refreshed\",\n  \"data\": {\n    \"accessToken\":  \"eyJhbGciOiJIUzI1NiJ9.NEW_ACCESS_TOKEN...\",\n    \"refreshToken\": \"eyJhbGciOiJIUzI1NiJ9.NEW_REFRESH_TOKEN...\",\n    \"tokenType\": \"Bearer\",\n    \"expiresIn\": 900000\n  }\n}"
+            },
+            {
+              "name": "401 — Refresh token expired",
+              "status": "Unauthorized",
+              "code": 401,
+              "body": "{\n  \"success\": false,\n  \"message\": \"Token refresh failed\",\n  \"error\": \"Refresh token not found or expired\"\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{iacUrl}}/api/v1/auth/logout",
+              "host": ["{{iacUrl}}"],
+              "path": ["api","v1","auth","logout"]
+            },
+            "description": "Revokes all refresh tokens for the currently authenticated user."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Logout: status 200', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('accessToken', '');",
+                  "pm.collectionVariables.set('refreshToken', '');",
+                  "console.log('✅ Logged out. Tokens cleared from collection variables.');"
+                ]
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "Register — Validation Error (bad input)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{iacUrl}}/api/v1/auth/register",
+              "host": ["{{iacUrl}}"],
+              "path": ["api","v1","auth","register"]
+            },
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"username\": \"x\",\n  \"email\": \"not-an-email\",\n  \"password\": \"123\"\n}"
+            },
+            "description": "Expects 400 — username too short, invalid email, password too weak."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Validation: status 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "400 — Validation failed",
+              "status": "Bad Request",
+              "code": 400,
+              "body": "{\n  \"success\": false,\n  \"message\": \"Registration failed\",\n  \"error\": \"Validation failed: username must be between 3 and 100 characters\"\n}"
+            }
+          ]
+        }
+
+      ]
+    },
+
+    {
+      "name": "👤 IAC Service — Users",
+      "description": "User profile and administration. Base URL: {{iacUrl}}",
+      "item": [
+
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{iacUrl}}/api/v1/users/me",
+              "host": ["{{iacUrl}}"],
+              "path": ["api","v1","users","me"]
+            },
+            "description": "Returns the profile of the currently authenticated user."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "var data = pm.response.json().data;",
+                  "pm.test('Has username', () => pm.expect(data.username).to.be.a('string').and.not.empty);",
+                  "pm.test('Has id',       () => pm.expect(data.id).to.be.a('string'));",
+                  "pm.test('Has roles',    () => pm.expect(data.roles).to.be.an('array'));",
+                  "pm.collectionVariables.set('userId', data.id);",
+                  "console.log('Profile fetched for:', data.username, '| roles:', data.roles.join(', '));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 — My profile",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n    \"username\": \"john_doe\",\n    \"email\": \"john@example.com\",\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"roles\": [\"ROLE_CLIENT\"],\n    \"enabled\": true,\n    \"createdAt\": \"2024-01-15T10:00:00\"\n  }\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "List All Users (Admin+)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{iacUrl}}/api/v1/users?page=0&size=20&sort=createdAt&direction=DESC",
+              "host": ["{{iacUrl}}"],
+              "path": ["api","v1","users"],
+              "query": [
+                { "key": "page",      "value": "0",         "description": "0-based page number" },
+                { "key": "size",      "value": "20",        "description": "Items per page" },
+                { "key": "sort",      "value": "createdAt", "description": "Sort field" },
+                { "key": "direction", "value": "DESC",      "description": "ASC or DESC" }
+              ]
+            },
+            "description": "Paginated list of all users. Requires ADMIN or SUPER_ADMIN role."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "var data = pm.response.json().data;",
+                  "pm.test('Has content array', () => pm.expect(data.content).to.be.an('array'));",
+                  "pm.test('Has totalElements', () => pm.expect(data.totalElements).to.be.a('number'));",
+                  "console.log('Total users:', data.totalElements);"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 — Paginated users",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"message\": \"Users fetched\",\n  \"data\": {\n    \"content\": [\n      {\n        \"id\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n        \"username\": \"admin\",\n        \"email\": \"admin@project.local\",\n        \"roles\": [\"ROLE_SUPER_ADMIN\"],\n        \"enabled\": true\n      },\n      {\n        \"id\": \"7cb94f60-1234-4321-abcd-ef1234567890\",\n        \"username\": \"john_doe\",\n        \"email\": \"john@example.com\",\n        \"roles\": [\"ROLE_CLIENT\"],\n        \"enabled\": true\n      }\n    ],\n    \"totalElements\": 2,\n    \"totalPages\": 1,\n    \"number\": 0,\n    \"size\": 20\n  }\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "Get User by ID (Admin+)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{iacUrl}}/api/v1/users/{{userId}}",
+              "host": ["{{iacUrl}}"],
+              "path": ["api","v1","users","{{userId}}"]
+            },
+            "description": "Fetch details for a specific user by UUID. Requires ADMIN or SUPER_ADMIN role."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('User returned', () => pm.expect(pm.response.json().data).to.have.property('id'));"
+                ]
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "Delete User (Super Admin only)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{iacUrl}}/api/v1/users/{{userId}}",
+              "host": ["{{iacUrl}}"],
+              "path": ["api","v1","users","{{userId}}"]
+            },
+            "description": "Permanently deletes a user account. Requires SUPER_ADMIN role."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Success flag', () => pm.expect(pm.response.json().success).to.be.true);"
+                ]
+              }
+            }
+          ]
+        }
+
+      ]
+    },
+
+    {
+      "name": "🛡️ IAC Service — Admin / Role Management",
+      "description": "Role assignment and revocation. Base URL: {{iacUrl}}. Requires ADMIN or SUPER_ADMIN.",
+      "item": [
+
+        {
+          "name": "List All Roles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{iacUrl}}/api/v1/admin/roles",
+              "host": ["{{iacUrl}}"],
+              "path": ["api","v1","admin","roles"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "var roles = pm.response.json().data;",
+                  "pm.test('Has roles array', () => pm.expect(roles).to.be.an('array'));",
+                  "pm.test('Contains USER role', () => pm.expect(roles.some(r => r.includes('USER'))).to.be.true);",
+                  "console.log('Available roles:', roles.join(', '));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 — All roles",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"message\": \"Roles fetched\",\n  \"data\": [\"ROLE_USER\", \"ROLE_CLIENT\", \"ROLE_CLEANER\", \"ROLE_ADMIN\", \"ROLE_SUPER_ADMIN\"]\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "Assign ADMIN role",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{iacUrl}}/api/v1/admin/assign-role",
+              "host": ["{{iacUrl}}"],
+              "path": ["api","v1","admin","assign-role"]
+            },
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"username\": \"john_doe\",\n  \"roleName\": \"ADMIN\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Role assigned', () => {",
+                  "  var roles = pm.response.json().data.roles;",
+                  "  pm.expect(roles.some(r => r.includes('ADMIN'))).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 — Role assigned",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"message\": \"Role assigned successfully\",\n  \"data\": {\n    \"id\": \"7cb94f60-1234-4321-abcd-ef1234567890\",\n    \"username\": \"john_doe\",\n    \"roles\": [\"ROLE_CLIENT\", \"ROLE_ADMIN\"]\n  }\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "Assign CLEANER role",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{iacUrl}}/api/v1/admin/assign-role",
+              "host": ["{{iacUrl}}"],
+              "path": ["api","v1","admin","assign-role"]
+            },
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"username\": \"cleaner_bob\",\n  \"roleName\": \"CLEANER\"\n}"
+            }
+          }
+        },
+
+        {
+          "name": "Revoke ADMIN role",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{iacUrl}}/api/v1/admin/revoke-role",
+              "host": ["{{iacUrl}}"],
+              "path": ["api","v1","admin","revoke-role"]
+            },
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"username\": \"john_doe\",\n  \"roleName\": \"ADMIN\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "Try Revoke SUPER_ADMIN (should fail 400)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{iacUrl}}/api/v1/admin/revoke-role",
+              "host": ["{{iacUrl}}"],
+              "path": ["api","v1","admin","revoke-role"]
+            },
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"username\": \"admin\",\n  \"roleName\": \"SUPER_ADMIN\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Returns 400 — cannot revoke SUPER_ADMIN', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "400 — Protected role",
+              "status": "Bad Request",
+              "code": 400,
+              "body": "{\n  \"success\": false,\n  \"message\": \"Role revocation failed\",\n  \"error\": \"SUPER_ADMIN role cannot be revoked\"\n}"
+            }
+          ]
+        }
+
+      ]
+    },
+
+    {
+      "name": "🏠 Property Service",
+      "description": "Manage client properties. Base URL: {{propertyUrl}}. Requires ROLE_CLIENT.",
+      "item": [
+
+        {
+          "name": "Add Property",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{propertyUrl}}/api/v1/properties",
+              "host": ["{{propertyUrl}}"],
+              "path": ["api","v1","properties"]
+            },
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"name\": \"Downtown Apartment\",\n  \"type\": \"APARTMENT\",\n  \"areaSqm\": 75.5,\n  \"bathroomsCount\": 1,\n  \"address\": \"123 King St W, Toronto, ON M5X 1A1\",\n  \"notes\": \"Keypad code: 4821. Leave shoes at the door.\"\n}"
+            },
+            "description": "Creates a new property for the authenticated client. Type must be one of: APARTMENT, HOUSE, OFFICE."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "var data = pm.response.json().data;",
+                  "pm.test('Has property id', () => pm.expect(data.id).to.be.a('string'));",
+                  "pm.test('Type is APARTMENT', () => pm.expect(data.type).to.eql('APARTMENT'));",
+                  "pm.collectionVariables.set('propertyId', data.id);",
+                  "console.log('✅ Property created, id saved:', data.id);"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "201 — Property created",
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"success\": true,\n  \"message\": \"Property added\",\n  \"data\": {\n    \"id\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n    \"name\": \"Downtown Apartment\",\n    \"type\": \"APARTMENT\",\n    \"areaSqm\": 75.5,\n    \"bathroomsCount\": 1,\n    \"address\": \"123 King St W, Toronto, ON M5X 1A1\",\n    \"notes\": \"Keypad code: 4821.\"\n  }\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "Add Property — HOUSE",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{propertyUrl}}/api/v1/properties",
+              "host": ["{{propertyUrl}}"],
+              "path": ["api","v1","properties"]
+            },
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"name\": \"Suburban House\",\n  \"type\": \"HOUSE\",\n  \"areaSqm\": 200.0,\n  \"bathroomsCount\": 3,\n  \"address\": \"456 Maple Ave, Mississauga, ON L5A 2B1\",\n  \"notes\": \"Dog is friendly.\"\n}"
+            }
+          }
+        },
+
+        {
+          "name": "List My Properties",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{propertyUrl}}/api/v1/properties?page=0&size=20",
+              "host": ["{{propertyUrl}}"],
+              "path": ["api","v1","properties"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "var data = pm.response.json().data;",
+                  "pm.test('Has content', () => pm.expect(data.content).to.be.an('array'));",
+                  "if (data.content.length > 0) pm.collectionVariables.set('propertyId', data.content[0].id);"
+                ]
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "Get Property by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{propertyUrl}}/api/v1/properties/{{propertyId}}",
+              "host": ["{{propertyUrl}}"],
+              "path": ["api","v1","properties","{{propertyId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "Update Property",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{propertyUrl}}/api/v1/properties/{{propertyId}}",
+              "host": ["{{propertyUrl}}"],
+              "path": ["api","v1","properties","{{propertyId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"name\": \"Downtown Apartment (Updated)\",\n  \"type\": \"APARTMENT\",\n  \"areaSqm\": 80.0,\n  \"bathroomsCount\": 2,\n  \"address\": \"123 King St W, Toronto, ON M5X 1A1\",\n  \"notes\": \"Keypad 9999. Pet present.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Area updated', () => pm.expect(pm.response.json().data.areaSqm).to.eql(80.0));"
+                ]
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "Delete (Deactivate) Property",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{propertyUrl}}/api/v1/properties/{{propertyId}}",
+              "host": ["{{propertyUrl}}"],
+              "path": ["api","v1","properties","{{propertyId}}"]
+            },
+            "description": "Soft-deletes a property (sets active=false). Does not affect existing orders."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "[Internal] Validate Property Ownership",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{propertyUrl}}/api/v1/properties/{{propertyId}}/validate?clientId={{userId}}",
+              "host": ["{{propertyUrl}}"],
+              "path": ["api","v1","properties","{{propertyId}}","validate"],
+              "query": [{ "key": "clientId", "value": "{{userId}}", "description": "UUID of the client to verify ownership" }]
+            },
+            "description": "Called internally by order-service to verify that a property belongs to the requesting client."
+          }
+        }
+
+      ]
+    },
+
+    {
+      "name": "💰 Pricing Service",
+      "description": "Service catalog and price calculation. Base URL: {{pricingUrl}}. Catalog is public; calculation is open.",
+      "item": [
+
+        {
+          "name": "List Catalog — Service Types",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{pricingUrl}}/api/v1/catalog/services",
+              "host": ["{{pricingUrl}}"],
+              "path": ["api","v1","catalog","services"]
+            },
+            "description": "Returns all active cleaning service types with their base rates. Public endpoint — no auth required."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has services list', () => pm.expect(pm.response.json().data).to.be.an('array').and.not.empty);",
+                  "console.log('Services found:', pm.response.json().data.map(s => s.code).join(', '));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 — Service catalog",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    {\n      \"id\": \"11111111-1111-1111-1111-111111111111\",\n      \"code\": \"STANDARD\",\n      \"name\": \"Standard Cleaning\",\n      \"ratePerSqm\": 0.50,\n      \"ratePerBathroom\": 15.00,\n      \"active\": true\n    },\n    {\n      \"id\": \"22222222-2222-2222-2222-222222222222\",\n      \"code\": \"DEEP\",\n      \"name\": \"Deep Cleaning\",\n      \"ratePerSqm\": 1.20,\n      \"ratePerBathroom\": 25.00,\n      \"active\": true\n    },\n    {\n      \"id\": \"33333333-3333-3333-3333-333333333333\",\n      \"code\": \"MOVE_IN_OUT\",\n      \"name\": \"Move In/Out Cleaning\",\n      \"ratePerSqm\": 1.80,\n      \"ratePerBathroom\": 35.00,\n      \"active\": true\n    }\n  ]\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "List Catalog — Service Addons",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{pricingUrl}}/api/v1/catalog/addons",
+              "host": ["{{pricingUrl}}"],
+              "path": ["api","v1","catalog","addons"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has addons list', () => pm.expect(pm.response.json().data).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 — Addons catalog",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"data\": [\n    { \"code\": \"OVEN\",     \"name\": \"Oven Cleaning\",        \"price\": 40.00 },\n    { \"code\": \"FRIDGE\",   \"name\": \"Fridge Cleaning\",      \"price\": 35.00 },\n    { \"code\": \"WINDOWS\",  \"name\": \"Window Cleaning\",      \"price\": 50.00 },\n    { \"code\": \"LAUNDRY\",  \"name\": \"Laundry & Folding\",    \"price\": 30.00 },\n    { \"code\": \"IRONING\",  \"name\": \"Ironing\",              \"price\": 25.00 }\n  ]\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "Calculate Price — Standard",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{pricingUrl}}/api/v1/pricing/calculate",
+              "host": ["{{pricingUrl}}"],
+              "path": ["api","v1","pricing","calculate"]
+            },
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"areaSqm\": 75.5,\n  \"bathroomsCount\": 1,\n  \"serviceTypeCode\": \"STANDARD\",\n  \"addonCodes\": [],\n  \"frequency\": \"ONE_TIME\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "var data = pm.response.json().data;",
+                  "pm.test('Has totalPrice', () => pm.expect(data.totalPrice).to.be.a('number').and.above(0));",
+                  "pm.test('Has basePrice',  () => pm.expect(data.basePrice).to.be.a('number'));",
+                  "console.log('Price breakdown:', JSON.stringify(data, null, 2));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 — Price calculated",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"message\": \"Price calculated\",\n  \"data\": {\n    \"basePrice\": 52.75,\n    \"addonsPrice\": 0.00,\n    \"discountPercent\": 0,\n    \"totalPrice\": 52.75,\n    \"durationHours\": 2.50,\n    \"breakdown\": [\n      \"Area: 75.5 sqm × $0.50 = $37.75\",\n      \"Bathrooms: 1 × $15.00 = $15.00\"\n    ]\n  }\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "Calculate Price — Deep Clean with Addons",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{pricingUrl}}/api/v1/pricing/calculate",
+              "host": ["{{pricingUrl}}"],
+              "path": ["api","v1","pricing","calculate"]
+            },
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"areaSqm\": 200.0,\n  \"bathroomsCount\": 3,\n  \"serviceTypeCode\": \"DEEP\",\n  \"addonCodes\": [\"OVEN\", \"FRIDGE\", \"WINDOWS\"],\n  \"frequency\": \"WEEKLY\"\n}"
+            }
+          }
+        },
+
+        {
+          "name": "Calculate Price — Invalid Service Type (400)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{pricingUrl}}/api/v1/pricing/calculate",
+              "host": ["{{pricingUrl}}"],
+              "path": ["api","v1","pricing","calculate"]
+            },
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"areaSqm\": 50.0,\n  \"bathroomsCount\": 1,\n  \"serviceTypeCode\": \"INVALID_SERVICE\",\n  \"frequency\": \"ONE_TIME\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Returns 400 for unknown service type', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        }
+
+      ]
+    },
+
+    {
+      "name": "📋 Order Service — Client",
+      "description": "Create, pay, list and cancel cleaning orders. Base URL: {{orderUrl}}. Requires ROLE_CLIENT.",
+      "item": [
+
+        {
+          "name": "Create Order (PENDING)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{orderUrl}}/api/v1/orders",
+              "host": ["{{orderUrl}}"],
+              "path": ["api","v1","orders"]
+            },
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"propertyId\": \"{{propertyId}}\",\n  \"serviceTypeCode\": \"STANDARD\",\n  \"addonCodes\": [\"OVEN\"],\n  \"frequency\": \"ONE_TIME\",\n  \"scheduledDate\": \"2026-05-01T10:00:00\",\n  \"notes\": \"Please focus on the kitchen.\"\n}"
+            },
+            "description": "Creates an order in PENDING status. Call /pay to confirm and trigger cleaner assignment."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "var data = pm.response.json().data;",
+                  "pm.test('Status is PENDING', () => pm.expect(data.status).to.eql('PENDING'));",
+                  "pm.test('Has totalPrice', () => pm.expect(data.totalPrice).to.be.a('number'));",
+                  "pm.collectionVariables.set('orderId', data.id);",
+                  "console.log('✅ Order created:', data.id, '| total:', data.totalPrice);"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "201 — Order created (PENDING)",
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"success\": true,\n  \"message\": \"Order created. Complete payment to confirm.\",\n  \"data\": {\n    \"id\": \"ffffffff-aaaa-bbbb-cccc-dddddddddddd\",\n    \"propertyId\": \"a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n    \"serviceTypeCode\": \"STANDARD\",\n    \"addons\": [\"OVEN\"],\n    \"frequency\": \"ONE_TIME\",\n    \"scheduledDate\": \"2026-05-01T10:00:00\",\n    \"status\": \"PENDING\",\n    \"basePrice\": 52.75,\n    \"addonsPrice\": 40.00,\n    \"discountPercent\": 0,\n    \"totalPrice\": 92.75,\n    \"cleanerId\": null,\n    \"createdAt\": \"2026-04-15T20:00:00\"\n  }\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "Pay Order (PENDING → CONFIRMED + Cleaner Assigned)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{orderUrl}}/api/v1/orders/{{orderId}}/pay",
+              "host": ["{{orderUrl}}"],
+              "path": ["api","v1","orders","{{orderId}}","pay"]
+            },
+            "description": "Simulates payment processing. Changes status PENDING→CONFIRMED and assigns a cleaner via Round-Robin."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "var data = pm.response.json().data;",
+                  "pm.test('Status is CONFIRMED', () => pm.expect(data.status).to.eql('CONFIRMED'));",
+                  "pm.test('Cleaner assigned OR TBD', () => {",
+                  "  pm.expect(pm.response.json().message).to.include('Cleaner assigned');",
+                  "});",
+                  "console.log('✅ Paid! Cleaner:', data.cleanerId || 'none available');"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 — Confirmed, cleaner assigned",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"message\": \"Payment confirmed! Cleaner assigned: b2c3d4e5-f6a7-8901-bcde-f12345678901\",\n  \"data\": {\n    \"id\": \"ffffffff-aaaa-bbbb-cccc-dddddddddddd\",\n    \"status\": \"CONFIRMED\",\n    \"cleanerId\": \"b2c3d4e5-f6a7-8901-bcde-f12345678901\",\n    \"totalPrice\": 92.75\n  }\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "My Orders (paginated)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{orderUrl}}/api/v1/orders?page=0&size=10",
+              "host": ["{{orderUrl}}"],
+              "path": ["api","v1","orders"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has content', () => pm.expect(pm.response.json().data.content).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "Get Order by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{orderUrl}}/api/v1/orders/{{orderId}}",
+              "host": ["{{orderUrl}}"],
+              "path": ["api","v1","orders","{{orderId}}"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Correct order id', () => pm.expect(pm.response.json().data.id).to.eql(pm.collectionVariables.get('orderId')));"
+                ]
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "Cancel Order",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{orderUrl}}/api/v1/orders/{{orderId}}?reason=Changed%20my%20plans",
+              "host": ["{{orderUrl}}"],
+              "path": ["api","v1","orders","{{orderId}}"],
+              "query": [{ "key": "reason", "value": "Changed my plans" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Status is CANCELLED', () => pm.expect(pm.response.json().data.status).to.eql('CANCELLED'));"
+                ]
+              }
+            }
+          ]
+        }
+
+      ]
+    },
+
+    {
+      "name": "🧹 Order Service — Cleaner",
+      "description": "Cleaner schedule, earnings and order actions. Base URL: {{orderUrl}}. Requires ROLE_CLEANER.",
+      "item": [
+
+        {
+          "name": "My Schedule",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{orderUrl}}/api/v1/cleaner/schedule",
+              "host": ["{{orderUrl}}"],
+              "path": ["api","v1","cleaner","schedule"]
+            },
+            "description": "Returns upcoming CONFIRMED orders assigned to this cleaner."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Is array', () => pm.expect(pm.response.json().data).to.be.an('array'));",
+                  "console.log('Cleaner has', pm.response.json().data.length, 'upcoming jobs.');"
+                ]
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "Toggle Availability — set available=true",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{orderUrl}}/api/v1/cleaner/profile/availability?available=true",
+              "host": ["{{orderUrl}}"],
+              "path": ["api","v1","cleaner","profile","availability"],
+              "query": [{ "key": "available", "value": "true" }]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "Toggle Availability — set available=false",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{orderUrl}}/api/v1/cleaner/profile/availability?available=false",
+              "host": ["{{orderUrl}}"],
+              "path": ["api","v1","cleaner","profile","availability"],
+              "query": [{ "key": "available", "value": "false" }]
+            }
+          }
+        },
+
+        {
+          "name": "Complete Order",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{orderUrl}}/api/v1/cleaner/orders/{{orderId}}/complete",
+              "host": ["{{orderUrl}}"],
+              "path": ["api","v1","cleaner","orders","{{orderId}}","complete"]
+            },
+            "description": "Marks a CONFIRMED order as COMPLETED. Triggers earning record creation."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Status is COMPLETED', () => pm.expect(pm.response.json().data.status).to.eql('COMPLETED'));"
+                ]
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "Request Replacement",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{orderUrl}}/api/v1/cleaner/orders/{{orderId}}/request-replacement",
+              "host": ["{{orderUrl}}"],
+              "path": ["api","v1","cleaner","orders","{{orderId}}","request-replacement"]
+            }
+          }
+        },
+
+        {
+          "name": "Total Earnings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{orderUrl}}/api/v1/cleaner/earnings",
+              "host": ["{{orderUrl}}"],
+              "path": ["api","v1","cleaner","earnings"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Earnings is number', () => pm.expect(pm.response.json().data).to.be.a('number'));"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 — Total earnings",
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"success\": true,\n  \"message\": \"Total earnings\",\n  \"data\": 347.50\n}"
+            }
+          ]
+        },
+
+        {
+          "name": "Monthly Earnings — April 2026",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{orderUrl}}/api/v1/cleaner/earnings/2026/4",
+              "host": ["{{orderUrl}}"],
+              "path": ["api","v1","cleaner","earnings","2026","4"]
+            },
+            "description": "Returns total earnings for a specific month. Format: /earnings/{year}/{month}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Monthly earnings is number', () => pm.expect(pm.response.json().data).to.be.a('number'));"
+                ]
+              }
+            }
+          ]
+        }
+
+      ]
+    },
+
+    {
+      "name": "📖 Booking Service (via UI proxy :18090)",
+      "description": "Booking Service — accessible through the UI gateway. Base URL: {{bookingUrl}}",
+      "item": [
+
+        {
+          "name": "Catalog — List Services (public)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{bookingUrl}}/api/v1/services",
+              "host": ["{{bookingUrl}}"],
+              "path": ["api","v1","services"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Has services', () => pm.expect(pm.response.json().data).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "Catalog — List Addons (public)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{bookingUrl}}/api/v1/addons",
+              "host": ["{{bookingUrl}}"],
+              "path": ["api","v1","addons"]
+            }
+          }
+        },
+
+        {
+          "name": "Add Property (CLIENT)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{bookingUrl}}/api/v1/properties",
+              "host": ["{{bookingUrl}}"],
+              "path": ["api","v1","properties"]
+            },
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"name\": \"My Office\",\n  \"type\": \"OFFICE\",\n  \"areaSqm\": 120.0,\n  \"bathroomsCount\": 2,\n  \"address\": \"789 Bay St, Toronto, ON M5G 2C1\",\n  \"notes\": \"Clean after 6pm.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.json().data && pm.response.json().data.id) {",
+                  "  pm.collectionVariables.set('propertyId', pm.response.json().data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "List My Properties",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{bookingUrl}}/api/v1/properties?page=0&size=20",
+              "host": ["{{bookingUrl}}"],
+              "path": ["api","v1","properties"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "Create Order (Booking Service)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{bookingUrl}}/api/v1/orders",
+              "host": ["{{bookingUrl}}"],
+              "path": ["api","v1","orders"]
+            },
+            "body": {
+              "mode": "raw",
+              "options": { "raw": { "language": "json" } },
+              "raw": "{\n  \"propertyId\": \"{{propertyId}}\",\n  \"serviceTypeCode\": \"DEEP\",\n  \"addonCodes\": [\"OVEN\", \"WINDOWS\"],\n  \"frequency\": \"WEEKLY\",\n  \"scheduledDate\": \"2026-05-10T09:00:00\",\n  \"notes\": \"Weekly deep clean.\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.json().data) {",
+                  "  pm.collectionVariables.set('orderId', pm.response.json().data.id);",
+                  "  console.log('Order id:', pm.response.json().data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+
+        {
+          "name": "My Orders",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{bookingUrl}}/api/v1/orders?page=0&size=10",
+              "host": ["{{bookingUrl}}"],
+              "path": ["api","v1","orders"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "10" }
+              ]
+            }
+          }
+        },
+
+        {
+          "name": "Get Order by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{bookingUrl}}/api/v1/orders/{{orderId}}",
+              "host": ["{{bookingUrl}}"],
+              "path": ["api","v1","orders","{{orderId}}"]
+            }
+          }
+        },
+
+        {
+          "name": "Cancel Order",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{bookingUrl}}/api/v1/orders/{{orderId}}?reason=No%20longer%20needed",
+              "host": ["{{bookingUrl}}"],
+              "path": ["api","v1","orders","{{orderId}}"],
+              "query": [{ "key": "reason", "value": "No longer needed" }]
+            }
+          }
+        },
+
+        {
+          "name": "Cleaner — My Schedule",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{bookingUrl}}/api/v1/cleaner/schedule",
+              "host": ["{{bookingUrl}}"],
+              "path": ["api","v1","cleaner","schedule"]
+            }
+          }
+        },
+
+        {
+          "name": "Cleaner — Complete Order",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{bookingUrl}}/api/v1/cleaner/orders/{{orderId}}/complete",
+              "host": ["{{bookingUrl}}"],
+              "path": ["api","v1","cleaner","orders","{{orderId}}","complete"]
+            }
+          }
+        },
+
+        {
+          "name": "Cleaner — Request Replacement",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{bookingUrl}}/api/v1/cleaner/orders/{{orderId}}/request-replacement",
+              "host": ["{{bookingUrl}}"],
+              "path": ["api","v1","cleaner","orders","{{orderId}}","request-replacement"]
+            }
+          }
+        },
+
+        {
+          "name": "Cleaner — Toggle Availability",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{bookingUrl}}/api/v1/cleaner/profile/availability?available=true",
+              "host": ["{{bookingUrl}}"],
+              "path": ["api","v1","cleaner","profile","availability"],
+              "query": [{ "key": "available", "value": "true" }]
+            }
+          }
+        },
+
+        {
+          "name": "Cleaner — Earnings Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{bookingUrl}}/api/v1/cleaner/earnings",
+              "host": ["{{bookingUrl}}"],
+              "path": ["api","v1","cleaner","earnings"]
+            }
+          }
+        },
+
+        {
+          "name": "Cleaner — Monthly Earnings (2026/4)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{bookingUrl}}/api/v1/cleaner/earnings/2026/4",
+              "host": ["{{bookingUrl}}"],
+              "path": ["api","v1","cleaner","earnings","2026","4"]
+            }
+          }
+        }
+
+      ]
+    }
+
+  ]
+}

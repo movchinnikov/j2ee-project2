@@ -1,0 +1,250 @@
+# ============================================================
+# J2EE Project — Cleaning Platform
+# Architecture: one PostgreSQL database per service
+#               all databases on a single PostgreSQL instance
+#               async messaging via Apache Kafka (Outbox Pattern)
+#
+# Databases:
+#   iac_db       (user: iac_user)       → IAC Service      :18080
+#   property_db  (user: property_user)  → Property Service :18081
+#   pricing_db   (user: pricing_user)   → Pricing Service  :18082
+#   order_db     (user: order_user)     → Order Service    :18083
+#   booking_db   (user: booking_user)   → Booking Service  :18090
+#
+# Ports (host:container):
+#   PostgreSQL       : 15432:5432
+#   Zookeeper        : 12181:2181
+#   Kafka (broker)   : 19092:9092
+#   IAC Service      : 18080:8080
+#   Property Service : 18081:8080
+#   Pricing Service  : 18082:8080
+#   Order Service    : 18083:8080
+#   UI/Booking Svc   : 18090:8090
+# ============================================================
+
+networks:
+  app-network:
+    driver: bridge
+    name: cleaning-network
+
+volumes:
+  postgres-data:
+    name: cleaning-postgres-data
+
+x-jwt-secret: &jwt-secret
+  JWT_SECRET: "J2EE-IAC-Service-Super-Secret-Key-2024-Change-This-In-Production!!"
+
+x-kafka-url: &kafka-url
+  KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+
+# Combined anchor for services that need BOTH JWT + Kafka
+x-kafka-jwt-env: &kafka-jwt-env
+  JWT_SECRET: "J2EE-IAC-Service-Super-Secret-Key-2024-Change-This-In-Production!!"
+  KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+
+services:
+
+  # ── PostgreSQL 16 — shared instance, one DB per service ───────
+  postgres:
+    image: postgres:16-alpine
+    container_name: cleaning-postgres
+    restart: unless-stopped
+    environment:
+      # The primary database / user (for IAC service)
+      POSTGRES_DB: iac_db
+      POSTGRES_USER: iac_user
+      POSTGRES_PASSWORD: iac_secret_pass
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      # Init script runs on first start — creates all service databases
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "15432:5432"
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U iac_user -d iac_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ── Zookeeper — required by Kafka ─────────────────────────────
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.1
+    container_name: cleaning-zookeeper
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_SYNC_LIMIT: 2
+    ports:
+      - "12181:2181"
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "(echo > /dev/tcp/localhost/2181) 2>/dev/null && echo OK || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # ── Apache Kafka 3.x (via Confluent Platform) ─────────────────
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: cleaning-kafka
+    restart: unless-stopped
+    depends_on:
+      zookeeper:
+        condition: service_started
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      # Listeners: internal for containers, external for host access
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:19092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_NUM_PARTITIONS: 3
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 1
+      KAFKA_LOG_RETENTION_HOURS: 168   # 7 days
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    ports:
+      - "19092:29092"
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # ── IAC Service — Identity & Access Control ───────────────────
+  iac-service:
+    build:
+      context: .
+      dockerfile: iac-service/Dockerfile
+    container_name: iac-service
+    restart: on-failure
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/iac_db
+      SPRING_DATASOURCE_USERNAME: iac_user
+      SPRING_DATASOURCE_PASSWORD: iac_secret_pass
+      <<: *kafka-jwt-env
+      JWT_ACCESS_TOKEN_EXPIRY_MS: 900000
+      JWT_REFRESH_TOKEN_EXPIRY_MS: 604800000
+      APP_SUPERADMIN_USERNAME: admin
+      APP_SUPERADMIN_EMAIL: admin@project.local
+      APP_SUPERADMIN_PASSWORD: password
+      APP_SUPERADMIN_FIRST_NAME: Super
+      APP_SUPERADMIN_LAST_NAME: Admin
+    ports:
+      - "18080:8080"
+    networks:
+      - app-network
+
+  # ── Property Service — property_db ───────────────────────────
+  property-service:
+    build:
+      context: ./property-service
+      dockerfile: Dockerfile
+    container_name: property-service
+    restart: on-failure
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/property_db
+      SPRING_DATASOURCE_USERNAME: property_user
+      SPRING_DATASOURCE_PASSWORD: property_secret_pass
+      <<: *jwt-secret
+    ports:
+      - "18081:8080"
+    networks:
+      - app-network
+
+  # ── Pricing Service — pricing_db ──────────────────────────────
+  pricing-service:
+    build:
+      context: ./pricing-service
+      dockerfile: Dockerfile
+    container_name: pricing-service
+    restart: on-failure
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/pricing_db
+      SPRING_DATASOURCE_USERNAME: pricing_user
+      SPRING_DATASOURCE_PASSWORD: pricing_secret_pass
+      <<: *jwt-secret
+    ports:
+      - "18082:8080"
+    networks:
+      - app-network
+
+  # ── Order Service — order_db ──────────────────────────────────
+  order-service:
+    build:
+      context: .
+      dockerfile: order-service/Dockerfile
+    container_name: order-service
+    restart: on-failure
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/order_db
+      SPRING_DATASOURCE_USERNAME: order_user
+      SPRING_DATASOURCE_PASSWORD: order_secret_pass
+      <<: *kafka-jwt-env
+      SERVICES_PRICING_URL: http://pricing-service:8080
+      SERVICES_PROPERTY_URL: http://property-service:8080
+    ports:
+      - "18083:8080"
+    networks:
+      - app-network
+
+  # ── UI / Booking Service — booking_db ─────────────────────────
+  ui-service:
+    build:
+      context: ./ui-service
+      dockerfile: Dockerfile
+    container_name: iac-ui
+    restart: on-failure
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # UI proxy URLs
+      IAC_SERVICE_URL: http://iac-service:8080
+      PROPERTY_SERVICE_URL: http://property-service:8080
+      PRICING_SERVICE_URL: http://pricing-service:8080
+      ORDER_SERVICE_URL: http://order-service:8080
+      # Booking service DB (embedded in ui-service)
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/booking_db
+      SPRING_DATASOURCE_USERNAME: booking_user
+      SPRING_DATASOURCE_PASSWORD: booking_secret_pass
+      <<: *jwt-secret
+      SERVER_PORT: 8090
+    ports:
+      - "18090:8090"
+    networks:
+      - app-network

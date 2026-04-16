@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Login — Cleaning Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&amp;display=swap" rel="stylesheet"/>
+<style>
+  :root{--bg:#0a0c14;--surface:#12151f;--card:#181c2a;--accent:#7c6aff;--accent2:#ff6b9d;--green:#34d399;--orange:#fb923c;--text:#e2e8f0;--muted:#64748b;--border:#1e2640;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;background-image:radial-gradient(ellipse at 20% 50%,rgba(124,106,255,.08) 0,transparent 60%),radial-gradient(ellipse at 80% 20%,rgba(255,107,157,.06) 0,transparent 50%);}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:2.5rem;width:100%;max-width:420px;box-shadow:0 25px 60px rgba(0,0,0,.4);}
+  .logo{display:flex;align-items:center;gap:.75rem;margin-bottom:2rem;}
+  .logo-icon{width:42px;height:42px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;}
+  .logo-text{font-size:1.1rem;font-weight:700;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+  h2{font-size:1.6rem;font-weight:700;margin-bottom:.4rem;}
+  .subtitle{color:var(--muted);font-size:.9rem;margin-bottom:1.8rem;}
+  .field{margin-bottom:1.1rem;}
+  .field label{display:block;font-size:.8rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.4rem;}
+  .field input{width:100%;padding:.75rem 1rem;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:.95rem;transition:border-color .2s;outline:none;}
+  .field input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,106,255,.15);}
+  .btn{width:100%;padding:.85rem;background:linear-gradient(135deg,var(--accent),#6b5ce7);color:white;border:none;border-radius:10px;font-size:1rem;font-weight:600;cursor:pointer;transition:all .2s;margin-top:.5rem;}
+  .btn:hover{transform:translateY(-1px);box-shadow:0 10px 30px rgba(124,106,255,.35);}
+  .btn:disabled{opacity:.6;cursor:not-allowed;transform:none;}
+  .links{margin-top:1.5rem;text-align:center;font-size:.88rem;color:var(--muted);}
+  .links a{color:var(--accent);text-decoration:none;font-weight:600;}
+  #msg{margin-top:1rem;padding:.75rem 1rem;border-radius:10px;font-size:.88rem;display:none;line-height:1.5;}
+  .ok{background:rgba(52,211,153,.1);border:1px solid var(--green);color:var(--green);}
+  .err{background:rgba(255,107,157,.1);border:1px solid var(--accent2);color:var(--accent2);}
+  .warn{background:rgba(251,146,60,.1);border:1px solid var(--orange);color:var(--orange);}
+  .spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;margin-right:.4rem;vertical-align:middle;}
+  .retry-btn{background:none;border:none;color:inherit;cursor:pointer;text-decoration:underline;font-size:inherit;padding:0;margin-left:.25rem;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <div class="logo-icon">🧹</div>
+    <span class="logo-text">CleanPlatform</span>
+  </div>
+  <h2>Welcome back</h2>
+  <p class="subtitle">Sign in to manage your cleaning services</p>
+
+  <div class="field">
+    <label for="username">Username</label>
+    <input id="username" type="text" placeholder="admin" autocomplete="username"/>
+  </div>
+  <div class="field">
+    <label for="password">Password</label>
+    <input id="password" type="password" placeholder="••••••••" autocomplete="current-password"/>
+  </div>
+
+  <button class="btn" id="loginBtn" onclick="doLogin()">Sign In</button>
+  <div id="msg"></div>
+
+  <div class="links">
+    No account? <a href="/register">Register as Client or Cleaner</a><br/>
+    <span style="margin-top:.5rem;display:block;">Admin: <strong style="color:var(--accent)">admin / password</strong></span>
+  </div>
+</div>
+
+<script>
+  let retryTimer = null;
+
+  function showMsg(html, cssClass) {
+    const el = document.getElementById('msg');
+    el.className = cssClass;
+    el.style.display = 'block';
+    el.innerHTML = html;
+  }
+
+  function startRetryCountdown(secs) {
+    let left = secs;
+    clearInterval(retryTimer);
+    const el = document.getElementById('msg');
+    retryTimer = setInterval(() => {
+      left--;
+      el.innerHTML = '⏳ Services are starting — retrying in ' + left + 's… ' +
+        '<button class="retry-btn" onclick="clearInterval(retryTimer);doLogin()">retry now</button>';
+      if (left <= 0) { clearInterval(retryTimer); doLogin(); }
+    }, 1000);
+  }
+
+  async function doLogin() {
+    clearInterval(retryTimer);
+    const btn = document.getElementById('loginBtn');
+    btn.innerHTML = '<span class="spin"></span>Signing in...';
+    btn.disabled = true;
+    document.getElementById('msg').style.display = 'none';
+
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+
+    if (!username || !password) {
+      showMsg('✗ Please enter username and password', 'err');
+      btn.textContent = 'Sign In'; btn.disabled = false;
+      return;
+    }
+
+    try {
+      const resp = await fetch('/proxy/iac/api/v1/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+
+      let json;
+      try { json = await resp.json(); }
+      catch(e) { throw new Error('Server returned non-JSON (status ' + resp.status + ')'); }
+
+      if (json.success) {
+        // Decode JWT payload for roles
+        try {
+          const payload = JSON.parse(atob(json.data.accessToken.split('.')[1]));
+          localStorage.setItem('roles',    JSON.stringify(payload.roles || []));
+          localStorage.setItem('username', payload.sub || username);
+        } catch(_) {
+          localStorage.setItem('roles', '[]');
+          localStorage.setItem('username', username);
+        }
+        localStorage.setItem('accessToken',  json.data.accessToken);
+        localStorage.setItem('refreshToken', json.data.refreshToken);
+        showMsg('✓ Login successful! Redirecting...', 'ok');
+        setTimeout(() => window.location.href = '/dashboard', 700);
+
+      } else if (json.error && json.error.includes('starting')) {
+        // Proxy returned "service is starting" — auto retry
+        showMsg('⏳ Services are starting — retrying in 15s…', 'warn');
+        startRetryCountdown(15);
+
+      } else {
+        showMsg('✗ ' + (json.error || json.message || 'Invalid credentials'), 'err');
+      }
+
+    } catch (e) {
+      // Network error — also schedule retry
+      showMsg('⏳ Services are starting — retrying in 15s…<br><small>' + e.message + '</small>', 'warn');
+      startRetryCountdown(15);
+    } finally {
+      btn.textContent = 'Sign In';
+      btn.disabled = false;
+    }
+  }
+
+  document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+</script>
+</body>
+</html>

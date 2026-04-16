@@ -1,0 +1,51 @@
+spring:
+  application:
+    name: property-service
+
+  datasource:
+    url: jdbc:postgresql://localhost:15432/property_db
+    username: property_user
+    password: property_secret_pass
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        default_schema: property
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    schemas: property
+    default-schema: property
+    baseline-on-migrate: true
+    validate-on-migrate: true
+    repair-on-migrate: true
+
+server:
+  port: 18081
+
+jwt:
+  secret: "J2EE-IAC-Service-Super-Secret-Key-2024-Change-This-In-Production!!"
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    try-it-out-enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+
+logging:
+  level:
+    com.project.property: DEBUG

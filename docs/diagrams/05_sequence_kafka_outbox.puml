@@ -1,0 +1,91 @@
+@startuml sequence_kafka_outbox
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam SequenceArrowColor #333333
+skinparam SequenceLifeLineBorderColor #333333
+skinparam SequenceParticipantBorderColor #333333
+skinparam NoteBackgroundColor #FFFFFF
+skinparam NoteBorderColor #333333
+
+title Sequence: Transactional Outbox Pattern\n(Guaranteed Kafka Delivery via Outbox Relay)
+
+participant "Client" as CLIENT
+participant "IAC Service\n:18080" as IAC
+participant "AuthService" as SVC
+database "iac_db\n(users + outbox_events)" as DB
+participant "OutboxRelayScheduler\n(every 5 sec)" as RELAY
+participant "Apache Kafka\n:9092" as KAFKA
+participant "Order Service\nUserEventConsumer" as ORDER
+
+== Step 1: User Registration (business TX) ==
+
+CLIENT -> IAC : POST /api/v1/auth/register\n{username, password, role: "CLEANER"}
+IAC -> SVC : register(request)
+
+group DB Transaction (atomic)
+  SVC -> DB : INSERT users (new user)
+  SVC -> DB : INSERT outbox_events\n{type: user.registered,\n status: PENDING, payload: JSON}
+  DB --> SVC : OK (both writes in one TX)
+end
+
+SVC --> IAC : AuthResponse (tokens)
+IAC --> CLIENT : 201 Created
+
+note right of DB
+  If crash here → user exists
+  AND outbox event exists.
+  Next relay run will publish.
+end note
+
+== Step 2: Outbox Relay (async, every 5 sec) ==
+
+RELAY -> DB : SELECT outbox_events\nWHERE status = 'PENDING'\nORDER BY created_at ASC LIMIT 50
+DB --> RELAY : [OutboxEventEntity]
+
+loop for each PENDING event
+  RELAY -> KAFKA : send(topic, aggregateId, payload)
+  KAFKA --> RELAY : ack
+
+  alt Success
+    RELAY -> DB : UPDATE outbox_events\nSET status = 'PROCESSED',\nprocessed_at = NOW()
+  else Kafka unavailable
+    RELAY -> DB : UPDATE outbox_events\nSET status = 'FAILED',\nerror_message = '...'
+    note right of RELAY
+      FAILED events are retried
+      on the next relay run.
+    end note
+  end
+end
+
+== Step 3: Kafka Consumer (Order Service) ==
+
+KAFKA -> ORDER : user.registered\n{userId, username, roles: ["CLEANER"]}
+ORDER -> ORDER : if roles contains "CLEANER"
+ORDER -> ORDER : ensureCleanerProfile(userId)
+ORDER -> DB : INSERT cleaner_profiles\n(idempotent — checks existence first)
+
+note right of ORDER
+  CleanerProfile is now ready
+  BEFORE the cleaner's first API call.
+  Round-robin assigner can pick
+  this cleaner immediately.
+end note
+
+== Alternative: Role Assigned Later ==
+
+CLIENT -> IAC : POST /api/v1/admin/assign-role\n{username: "bob", roleName: "CLEANER"}
+
+group DB Transaction (atomic)
+  IAC -> DB : UPDATE user_roles (add CLEANER)
+  IAC -> DB : INSERT outbox_events\n{type: user.role_assigned,\n roleName: CLEANER, status: PENDING}
+end
+
+IAC --> CLIENT : 200 OK UserResponse
+
+RELAY -> KAFKA : (next relay run — same process as above)
+KAFKA -> ORDER : user.role_assigned\n{userId, roleName: "CLEANER"}
+ORDER -> DB : INSERT cleaner_profiles (if not exists)
+
+@enduml

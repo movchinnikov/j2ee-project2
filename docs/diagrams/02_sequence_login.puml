@@ -1,0 +1,85 @@
+@startuml sequence_login
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam SequenceArrowColor #333333
+skinparam SequenceLifeLineBorderColor #333333
+skinparam SequenceParticipantBorderColor #333333
+skinparam SequenceBoxBorderColor #777777
+skinparam NoteBackgroundColor #FFFFFF
+skinparam NoteBorderColor #333333
+
+title Sequence: User Login & JWT Token Flow
+
+actor "User\n(Browser / Postman)" as USER
+participant "UI Service\n:18090" as UI
+participant "IAC Service\n:18080" as IAC
+participant "JwtAuthFilter" as FILTER
+participant "AuthService" as SVC
+participant "JwtTokenProvider" as JWT
+database "PostgreSQL\n(users, refresh_tokens)" as DB
+
+== Login ==
+
+USER -> UI : POST /api/v1/auth/login\n{username, password}
+UI -> IAC : Proxy → POST /api/v1/auth/login
+IAC -> FILTER : Passes through (public endpoint)
+IAC -> SVC : login(username, password)
+SVC -> DB : findByUsername(username)
+DB --> SVC : UserEntity
+SVC -> SVC : verifyPassword(plain, hash)
+
+alt Credentials valid
+  SVC -> JWT : generateAccessToken(userDetails)
+  JWT --> SVC : accessToken (JWT, 15 min)
+  SVC -> JWT : generateRefreshToken(userDetails)
+  JWT --> SVC : refreshToken (JWT, 7 days)
+  SVC -> DB : save RefreshTokenEntity
+  DB --> SVC : OK
+  SVC --> IAC : AuthResponse(accessToken, refreshToken)
+  IAC --> UI : 200 OK {data: {accessToken, refreshToken}}
+  UI --> USER : 200 OK + store tokens
+  note right of USER
+    Browser saves tokens.
+    Postman test script runs:
+    pm.collectionVariables.set(
+      'accessToken', json.data.accessToken)
+  end note
+else Invalid credentials
+  SVC --> IAC : Left("Bad credentials")
+  IAC --> UI : 401 Unauthorized
+  UI --> USER : 401 {error: "Bad credentials"}
+end
+
+== Authenticated Request ==
+
+USER -> UI : GET /api/v1/users/me\nAuthorization: Bearer <accessToken>
+UI -> IAC : Proxy with same header
+IAC -> FILTER : Extract token from header
+FILTER -> JWT : validateToken(accessToken)
+JWT --> FILTER : Claims (username, roles)
+FILTER -> FILTER : Set SecurityContext
+IAC -> SVC : getByUsername(username)
+SVC -> DB : findByUsername
+DB --> SVC : UserEntity
+SVC --> IAC : UserResponse
+IAC --> UI : 200 OK {data: UserResponse}
+UI --> USER : Profile data
+
+== Token Refresh ==
+
+USER -> IAC : POST /api/v1/auth/refresh\n?refreshToken=<refreshToken>
+IAC -> SVC : refresh(refreshToken)
+SVC -> JWT : validateToken(refreshToken)
+JWT --> SVC : Claims valid
+SVC -> DB : findByToken(refreshToken)
+DB --> SVC : RefreshTokenEntity
+SVC -> DB : delete old refresh token
+SVC -> JWT : generateAccessToken(user)
+SVC -> JWT : generateRefreshToken(user)
+SVC -> DB : save new RefreshTokenEntity
+SVC --> IAC : AuthResponse (new tokens)
+IAC --> USER : 200 OK {data: {accessToken, refreshToken}}
+
+@enduml

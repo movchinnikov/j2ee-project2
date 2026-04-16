@@ -1,0 +1,37 @@
+# Docker profile — dedicated order_db on shared PostgreSQL instance
+spring:
+  datasource:
+    url: jdbc:postgresql://postgres:5432/order_db
+    username: ${SPRING_DATASOURCE_USERNAME:order_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:order_secret_pass}
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:kafka:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      retries: 3
+    consumer:
+      group-id: order-service
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      auto-offset-reset: earliest
+
+server:
+  port: 8080
+
+jwt:
+  secret: ${JWT_SECRET}
+
+services:
+  pricing-url: ${SERVICES_PRICING_URL:http://pricing-service:8080}
+  property-url: ${SERVICES_PROPERTY_URL:http://property-service:8080}
+
+outbox:
+  relay:
+    interval-ms: 5000
+
+logging:
+  level:
+    com.project.order: INFO
