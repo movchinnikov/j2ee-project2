@@ -142,6 +142,8 @@ public class PropertyController {
     }
 
     private UUID clientId(UserDetails user) {
-        return UUID.nameUUIDFromBytes(user.getUsername().getBytes());
+        return (user instanceof com.project.property.security.UserPrincipal p)
+            ? p.getUserId()
+            : UUID.nameUUIDFromBytes(user.getUsername().getBytes()); // fallback
     }
 }

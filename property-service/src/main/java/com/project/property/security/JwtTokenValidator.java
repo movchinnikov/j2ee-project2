@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import javax.crypto.SecretKey;
 import java.util.Base64;
 import java.util.List;
+import java.util.UUID;
 
 @Component @Slf4j
 public class JwtTokenValidator {
@@ -27,6 +28,24 @@ public class JwtTokenValidator {
     public String extractUsername(String token) {
         return Jwts.parser().verifyWith(key()).build()
             .parseSignedClaims(token).getPayload().getSubject();
+    }
+
+    /**
+     * Extract the real IAC user UUID from the 'uid' claim.
+     * Falls back to nameUUIDFromBytes(username) for backward compatibility
+     * with tokens issued before the 'uid' claim was added.
+     */
+    public UUID extractUserId(String token) {
+        Claims claims = Jwts.parser().verifyWith(key()).build()
+            .parseSignedClaims(token).getPayload();
+        String uid = (String) claims.get("uid");
+        if (uid != null) {
+            try { return UUID.fromString(uid); } catch (IllegalArgumentException e) { /* fall through */ }
+        }
+        // Fallback: derive from username (matches old tokens, may not match DB)
+        String username = claims.getSubject();
+        log.warn("JWT missing 'uid' claim for user '{}' — using nameUUIDFromBytes fallback", username);
+        return UUID.nameUUIDFromBytes(username.getBytes());
     }
 
     @SuppressWarnings("unchecked")

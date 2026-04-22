@@ -35,7 +35,7 @@ public class AdminOrderController {
             @RequestParam(defaultValue = "50") int size,
             @RequestParam(required = false)    String status) {
 
-        PageRequest pr = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        PageRequest pr = PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "scheduledDate"));
 
         Page<OrderResponse> result = (status != null && !status.isBlank())
                 ? orderService.getAllOrdersByStatus(status.toUpperCase(), pr).map(OrderResponse::from)

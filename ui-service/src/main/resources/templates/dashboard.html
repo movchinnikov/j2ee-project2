@@ -595,7 +595,16 @@ async function createOrder() {
   } catch(e) { showAlert('orderAlert', '✗ ' + e.message, 'err'); }
 }
 
-/* ── My Orders ───────────────────────────────────────────── */
+const propColors = ['#fb923c', '#34d399', '#7c6aff', '#ff6b9d', '#facc15', '#60a5fa', '#a78bfa', '#f472b6', '#38bdf8', '#4ade80'];
+const assignedColors = {};
+function getPropColor(name) {
+  if (!name || name === '—') return '#64748b';
+  if (!assignedColors[name]) {
+    assignedColors[name] = propColors[Object.keys(assignedColors).length % propColors.length];
+  }
+  return assignedColors[name];
+}
+
 async function loadMyOrders() {
   try {
     const resp = await fetch(ORDER_URL + '/api/v1/orders?size=100', { headers });
@@ -615,9 +624,10 @@ async function loadMyOrders() {
       const isRecurring = o.seriesSize > 1;
       const sessionLabel = isRecurring ? `${o.seriesIndex+1}/${o.seriesSize}` : '—';
       const freqLabel = o.frequency === 'ONE_TIME' ? '—' : o.frequency;
+      const propColor = getPropColor(o.propertyName);
       return `<tr>
         <td style="font-family:monospace;font-size:.78rem;white-space:nowrap">${o.id.slice(0,8)}…</td>
-        <td>${o.propertyName||'—'}</td>
+        <td><span style="background:${propColor}20;color:${propColor};padding:0.25rem 0.6rem;border-radius:6px;font-weight:600;font-size:0.8rem;white-space:nowrap">${o.propertyName||'—'}</span></td>
         <td>${o.serviceTypeName||o.serviceTypeCode||'—'}</td>
         <td style="white-space:nowrap">${dateStr}</td>
         <td><span style="font-size:.78rem;color:var(--muted)">${freqLabel}</span></td>
@@ -695,7 +705,9 @@ async function loadSchedule() {
             <div class="month">${d.toLocaleString('en',{month:'short'})}</div>
           </div>` : ''}
           <div class="schedule-info">
-            <h4>${o.propertyName||'Property'} — ${o.serviceTypeName||o.serviceTypeCode||'Cleaning'}
+            <h4 style="display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap">
+              <span style="background:${getPropColor(o.propertyName)}20;color:${getPropColor(o.propertyName)};padding:0.2rem 0.5rem;border-radius:6px;font-weight:600;font-size:0.75rem;">${o.propertyName||'Property'}</span>
+              <span>— ${o.serviceTypeName||o.serviceTypeCode||'Cleaning'}</span>
               ${isRecurring && idx===0 ? `<span class="series-badge">📅 ${o.frequency} · ${group.length} sessions</span>` : ''}
             </h4>
             <p>${d ? d.toLocaleDateString('en-CA',{weekday:'short',month:'short',day:'numeric'}) + ' ' +
@@ -784,10 +796,11 @@ async function loadAdminOrders() {
       const dateStr = d ? d.toLocaleDateString('en-CA',{month:'short',day:'numeric',year:'numeric'})+' '+
         d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}) : '—';
       const sessionBadge = o.seriesSize > 1 ? `<span class="series-badge">📅 ${o.seriesIndex+1}/${o.seriesSize}</span>` : '';
+      const propColor = getPropColor(o.propertyName);
       return `<tr>
         <td style="font-family:monospace;font-size:.75rem;white-space:nowrap">${o.id.slice(0,8)}…</td>
         <td style="font-family:monospace;font-size:.75rem;white-space:nowrap">${o.clientId?.toString().slice(0,8)||'—'}…</td>
-        <td>${o.propertyName||'—'}</td>
+        <td><span style="background:${propColor}20;color:${propColor};padding:0.25rem 0.6rem;border-radius:6px;font-weight:600;font-size:0.8rem;white-space:nowrap">${o.propertyName||'—'}</span></td>
         <td style="white-space:nowrap">${o.serviceTypeName||o.serviceTypeCode||'—'}</td>
         <td style="white-space:nowrap;font-size:.82rem">${dateStr}</td>
         <td style="font-size:.78rem;color:var(--muted)">${o.frequency==='ONE_TIME'?'—':o.frequency}</td>

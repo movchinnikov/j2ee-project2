@@ -10,11 +10,13 @@ import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
+
 import java.io.IOException;
+import java.util.List;
+import java.util.UUID;
 
 @Component @RequiredArgsConstructor @Slf4j
 public class JwtAuthFilter extends OncePerRequestFilter {
@@ -29,17 +31,19 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             String token = header.substring(7);
             if (jwtValidator.isValid(token) && SecurityContextHolder.getContext().getAuthentication() == null) {
                 try {
-                    var authorities = jwtValidator.extractRoles(token).stream()
+                    List<SimpleGrantedAuthority> authorities = jwtValidator.extractRoles(token).stream()
                         .map(SimpleGrantedAuthority::new).toList();
 
-                    // Wrap in UserDetails so @AuthenticationPrincipal UserDetails works in controllers
-                    var userDetails = User.withUsername(jwtValidator.extractUsername(token))
-                        .password("")
-                        .authorities(authorities)
-                        .build();
+                    String username = jwtValidator.extractUsername(token);
+                    UUID userId = jwtValidator.extractUserId(token);
+
+                    // Use UserPrincipal so controllers can access the real IAC userId
+                    UserPrincipal principal = new UserPrincipal(username, authorities, userId);
 
                     SecurityContextHolder.getContext().setAuthentication(
-                        new UsernamePasswordAuthenticationToken(userDetails, null, authorities));
+                        new UsernamePasswordAuthenticationToken(principal, null, authorities));
+
+                    log.debug("Authenticated user='{}' uid={}", username, userId);
                 } catch (Exception e) { log.warn("JWT filter error: {}", e.getMessage()); }
             }
         }

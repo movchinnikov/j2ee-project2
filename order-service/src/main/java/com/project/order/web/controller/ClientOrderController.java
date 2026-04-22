@@ -92,7 +92,7 @@ public class ClientOrderController {
                 );
     }
 
-    @Operation(summary = "My orders — flat list, latest first")
+    @Operation(summary = "My orders — flat list, sorted by date ascending")
     @GetMapping
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<Page<OrderResponse>>> list(
@@ -100,7 +100,7 @@ public class ClientOrderController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size) {
         return ResponseEntity.ok(ApiResponse.ok(
-                orderService.getClientOrders(clientId(user), PageRequest.of(page, size))
+                orderService.getClientOrders(clientId(user), PageRequest.of(page, size, org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.ASC, "scheduledDate")))
                         .map(OrderResponse::from)));
     }
 
