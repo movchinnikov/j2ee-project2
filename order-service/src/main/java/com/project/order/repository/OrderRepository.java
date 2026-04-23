@@ -27,9 +27,11 @@ public interface OrderRepository extends JpaRepository<OrderEntity, UUID> {
 
     /** Cleaner's upcoming orders */
     @Query("SELECT o FROM OrderEntity o WHERE o.cleaner.id = :cid " +
-           "AND o.status NOT IN ('CANCELLED','COMPLETED') " +
-           "AND o.scheduledDate >= :from ORDER BY o.scheduledDate ASC")
+            "AND o.status NOT IN ('CANCELLED','COMPLETED') " +
+            "AND o.scheduledDate >= :from ORDER BY o.scheduledDate ASC")
     List<OrderEntity> findUpcomingByCleaner(@Param("cid") UUID cleanerId, @Param("from") LocalDateTime from);
 
-    default Option<OrderEntity> findByIdAsOption(UUID id) { return Option.ofOptional(findById(id)); }
+    default Option<OrderEntity> findByIdAsOption(UUID id) {
+        return Option.ofOptional(findById(id));
+    }
 }
